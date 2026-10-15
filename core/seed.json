@@ -1,0 +1,444 @@
+[
+  {
+    "id": "clara-victoria",
+    "title": "Estância Clara Victoria",
+    "type": "Fazenda",
+    "purpose": "Comprar",
+    "location": "San Pedro, Paraguai",
+    "region": "Paraguai",
+    "price": 11375000,
+    "currency": "USD",
+    "area": 3500,
+    "unit": "ha",
+    "productive": 2650,
+    "beds": 0,
+    "baths": 0,
+    "parking": 0,
+    "tag": "Fazenda premium",
+    "image": "farm.jpg",
+    "gallery": [
+      "farm.jpg",
+      "fields.jpg",
+      "ranch.jpg"
+    ],
+    "featured": true,
+    "status": "Publicado",
+    "description": "Uma propriedade onde a natureza encontra novas possibilidades. Amplas áreas de pastagem, reserva natural e acesso por estrada. Informações e valores ilustrativos para demonstração; documentos, aptidão e condições devem ser confirmados pela equipe.",
+    "soil": "Latossolo vermelho",
+    "rain": 1600,
+    "river": 2.8,
+    "reserve": 420,
+    "features": [
+      "Casa sede",
+      "Pastagens",
+      "Acesso rodoviário",
+      "Reserva natural"
+    ],
+    "translations": {
+      "es": {
+        "title": "Estancia Clara Victoria",
+        "description": "Una propiedad rural para explorar nuevas posibilidades de producción e inversión. Datos y valores ilustrativos; características y documentación deben ser validadas por profesionales.",
+        "features": [
+          "Casa principal",
+          "Pasturas",
+          "Acceso por carretera",
+          "Reserva natural"
+        ]
+      },
+      "en": {
+        "title": "Clara Victoria Estate",
+        "description": "A rural property to explore new farming and investment possibilities. Illustrative data and prices; characteristics and documents must be verified by qualified professionals.",
+        "features": [
+          "Main residence",
+          "Pastures",
+          "Road access",
+          "Nature reserve"
+        ]
+      },
+      "it": {
+        "title": "Tenuta Clara Victoria",
+        "description": "Una proprietà rurale per nuove possibilità produttive e di investimento. Dati e prezzi illustrativi; caratteristiche e documenti devono essere verificati da professionisti.",
+        "features": [
+          "Casa principale",
+          "Pascoli",
+          "Accesso stradale",
+          "Riserva naturale"
+        ]
+      },
+      "de": {
+        "title": "Landgut Clara Victoria",
+        "description": "Eine ländliche Immobilie für neue Möglichkeiten in Landwirtschaft und Investitionen. Beispieldaten und Preise; Eigenschaften und Unterlagen sind fachlich zu prüfen.",
+        "features": [
+          "Haupthaus",
+          "Weideland",
+          "Straßenzugang",
+          "Naturschutzfläche"
+        ]
+      }
+    }
+  },
+  {
+    "id": "casa-jardim",
+    "title": "Casa Jardim das Oliveiras",
+    "type": "Casa",
+    "purpose": "Comprar",
+    "location": "Curitiba, PR",
+    "region": "Sul",
+    "price": 2950000,
+    "currency": "BRL",
+    "area": 320,
+    "unit": "m²",
+    "beds": 4,
+    "baths": 5,
+    "parking": 3,
+    "tag": "Seleção Confianza",
+    "image": "house.jpg",
+    "gallery": [
+      "house.jpg",
+      "interior.jpg",
+      "hero.jpg"
+    ],
+    "featured": true,
+    "status": "Publicado",
+    "description": "Arquitetura contemporânea, ambientes integrados e luz natural. Uma casa para viver com espaço, conforto e tranquilidade. Imóvel demonstrativo.",
+    "features": [
+      "Piscina",
+      "Jardim",
+      "Espaço gourmet",
+      "Suíte master"
+    ],
+    "translations": {
+      "es": {
+        "title": "Casa Jardín de los Olivos",
+        "description": "Espacios contemporáneos, luz natural y comodidad. Inmueble ilustrativo del catálogo de demostración; consulta los detalles con el equipo.",
+        "features": [
+          "Piscina",
+          "Jardín",
+          "Área gourmet",
+          "Suite principal"
+        ]
+      },
+      "en": {
+        "title": "Olive Garden House",
+        "description": "Contemporary spaces, natural light and comfort. An illustrative demo property; contact the team for details.",
+        "features": [
+          "Pool",
+          "Garden",
+          "Outdoor dining",
+          "Primary suite"
+        ]
+      },
+      "it": {
+        "title": "Casa Giardino degli Ulivi",
+        "description": "Spazi contemporanei, luce naturale e comfort. Immobile illustrativo del catalogo dimostrativo; contatta il team per i dettagli.",
+        "features": [
+          "Piscina",
+          "Giardino",
+          "Spazio gourmet",
+          "Suite principale"
+        ]
+      },
+      "de": {
+        "title": "Haus Olivengarten",
+        "description": "Zeitgemäße Räume, natürliches Licht und Komfort. Beispielimmobilie im Demokatalog; fragen Sie das Team nach Details.",
+        "features": [
+          "Pool",
+          "Garten",
+          "Grillbereich",
+          "Hauptsuite"
+        ]
+      }
+    }
+  },
+  {
+    "id": "apartamento-horizonte",
+    "title": "Apartamento Horizonte",
+    "type": "Apartamento",
+    "purpose": "Comprar",
+    "location": "Goiânia, GO",
+    "region": "Centro-Oeste",
+    "price": 1850000,
+    "currency": "BRL",
+    "area": 198,
+    "unit": "m²",
+    "beds": 3,
+    "baths": 4,
+    "parking": 2,
+    "tag": "Novo no catálogo",
+    "image": "interior.jpg",
+    "gallery": [
+      "interior.jpg",
+      "apartment.jpg"
+    ],
+    "featured": true,
+    "status": "Publicado",
+    "description": "Espaços amplos e uma nova perspectiva para o dia a dia. Apartamento com ambientes integrados e acabamento contemporâneo. Imóvel demonstrativo.",
+    "features": [
+      "Varanda",
+      "Portaria",
+      "Elevador",
+      "Área de lazer"
+    ],
+    "translations": {
+      "es": {
+        "title": "Departamento Horizonte",
+        "description": "Espacios contemporáneos, luz natural y comodidad. Inmueble ilustrativo del catálogo de demostración; consulta los detalles con el equipo.",
+        "features": [
+          "Balcón",
+          "Recepción",
+          "Ascensor",
+          "Área recreativa"
+        ]
+      },
+      "en": {
+        "title": "Horizon Apartment",
+        "description": "Contemporary spaces, natural light and comfort. An illustrative demo property; contact the team for details.",
+        "features": [
+          "Balcony",
+          "Reception",
+          "Elevator",
+          "Leisure area"
+        ]
+      },
+      "it": {
+        "title": "Appartamento Orizzonte",
+        "description": "Spazi contemporanei, luce naturale e comfort. Immobile illustrativo del catalogo dimostrativo; contatta il team per i dettagli.",
+        "features": [
+          "Balcone",
+          "Portineria",
+          "Ascensore",
+          "Area ricreativa"
+        ]
+      },
+      "de": {
+        "title": "Wohnung Horizont",
+        "description": "Zeitgemäße Räume, natürliches Licht und Komfort. Beispielimmobilie im Demokatalog; fragen Sie das Team nach Details.",
+        "features": [
+          "Balkon",
+          "Empfang",
+          "Aufzug",
+          "Freizeitbereich"
+        ]
+      }
+    }
+  },
+  {
+    "id": "fazenda-boa-vista",
+    "title": "Fazenda Boa Vista",
+    "type": "Fazenda",
+    "purpose": "Comprar",
+    "location": "Sorriso, MT",
+    "region": "Centro-Oeste",
+    "price": 52000000,
+    "currency": "BRL",
+    "area": 5200,
+    "unit": "ha",
+    "productive": 4100,
+    "tag": "Oportunidade rural",
+    "image": "fields.jpg",
+    "gallery": [
+      "fields.jpg",
+      "farm.jpg",
+      "ranch.jpg"
+    ],
+    "featured": true,
+    "status": "Publicado",
+    "description": "Uma oportunidade para ampliar horizontes no campo, com áreas de produção e infraestrutura de apoio. Dados ilustrativos, sujeitos à avaliação técnica.",
+    "soil": "Argiloso",
+    "rain": 1650,
+    "reserve": 900,
+    "features": [
+      "Área agrícola",
+      "Galpão",
+      "Casa sede",
+      "Energia elétrica"
+    ],
+    "translations": {
+      "es": {
+        "title": "Campo Boa Vista",
+        "description": "Una propiedad rural para explorar nuevas posibilidades de producción e inversión. Datos y valores ilustrativos; características y documentación deben ser validadas por profesionales.",
+        "features": [
+          "Área agrícola",
+          "Depósito",
+          "Casa principal",
+          "Electricidad"
+        ]
+      },
+      "en": {
+        "title": "Boa Vista Farm",
+        "description": "A rural property to explore new farming and investment possibilities. Illustrative data and prices; characteristics and documents must be verified by qualified professionals.",
+        "features": [
+          "Agricultural area",
+          "Barn",
+          "Main residence",
+          "Electricity"
+        ]
+      },
+      "it": {
+        "title": "Tenuta Boa Vista",
+        "description": "Una proprietà rurale per nuove possibilità produttive e di investimento. Dati e prezzi illustrativi; caratteristiche e documenti devono essere verificati da professionisti.",
+        "features": [
+          "Area agricola",
+          "Capannone",
+          "Casa principale",
+          "Elettricità"
+        ]
+      },
+      "de": {
+        "title": "Landgut Boa Vista",
+        "description": "Eine ländliche Immobilie für neue Möglichkeiten in Landwirtschaft und Investitionen. Beispieldaten und Preise; Eigenschaften und Unterlagen sind fachlich zu prüfen.",
+        "features": [
+          "Agrarfläche",
+          "Scheune",
+          "Haupthaus",
+          "Strom"
+        ]
+      }
+    }
+  },
+  {
+    "id": "residencial-botanico",
+    "title": "Residencial Botânico",
+    "type": "Apartamento",
+    "purpose": "Lançamentos",
+    "location": "Curitiba, PR",
+    "region": "Sul",
+    "price": 1650000,
+    "currency": "BRL",
+    "area": 125,
+    "unit": "m²",
+    "beds": 3,
+    "baths": 3,
+    "parking": 2,
+    "tag": "Lançamento",
+    "image": "apartment.jpg",
+    "gallery": [
+      "apartment.jpg",
+      "interior.jpg"
+    ],
+    "featured": false,
+    "status": "Publicado",
+    "description": "Um novo endereço para uma vida mais leve. Projeto residencial demonstrativo, com espaços pensados para o bem-estar.",
+    "features": [
+      "Academia",
+      "Coworking",
+      "Varanda",
+      "Espaço gourmet"
+    ],
+    "translations": {
+      "es": {
+        "title": "Residencial Botánico",
+        "description": "Espacios contemporáneos, luz natural y comodidad. Inmueble ilustrativo del catálogo de demostración; consulta los detalles con el equipo.",
+        "features": [
+          "Gimnasio",
+          "Coworking",
+          "Balcón",
+          "Área gourmet"
+        ]
+      },
+      "en": {
+        "title": "Botanical Residences",
+        "description": "Contemporary spaces, natural light and comfort. An illustrative demo property; contact the team for details.",
+        "features": [
+          "Gym",
+          "Coworking",
+          "Balcony",
+          "Outdoor dining"
+        ]
+      },
+      "it": {
+        "title": "Residenze Botaniche",
+        "description": "Spazi contemporanei, luce naturale e comfort. Immobile illustrativo del catalogo dimostrativo; contatta il team per i dettagli.",
+        "features": [
+          "Palestra",
+          "Coworking",
+          "Balcone",
+          "Spazio gourmet"
+        ]
+      },
+      "de": {
+        "title": "Wohnanlage Botanico",
+        "description": "Zeitgemäße Räume, natürliches Licht und Komfort. Beispielimmobilie im Demokatalog; fragen Sie das Team nach Details.",
+        "features": [
+          "Fitnessstudio",
+          "Coworking",
+          "Balkon",
+          "Grillbereich"
+        ]
+      }
+    }
+  },
+  {
+    "id": "casa-parque",
+    "title": "Casa Refúgio do Parque",
+    "type": "Casa",
+    "purpose": "Alugar",
+    "location": "Curitiba, PR",
+    "region": "Sul",
+    "price": 8500,
+    "currency": "BRL",
+    "area": 240,
+    "unit": "m²",
+    "beds": 3,
+    "baths": 3,
+    "parking": 2,
+    "tag": "Para alugar",
+    "image": "hero.jpg",
+    "gallery": [
+      "hero.jpg",
+      "house.jpg",
+      "interior.jpg"
+    ],
+    "featured": false,
+    "status": "Publicado",
+    "description": "Conforto e natureza em sintonia. Casa demonstrativa disponível para locação, com espaços acolhedores e jardim.",
+    "features": [
+      "Jardim",
+      "Área gourmet",
+      "Armários",
+      "Lavanderia"
+    ],
+    "translations": {
+      "es": {
+        "title": "Casa Refugio del Parque",
+        "description": "Espacios contemporáneos, luz natural y comodidad. Inmueble ilustrativo del catálogo de demostración; consulta los detalles con el equipo.",
+        "features": [
+          "Jardín",
+          "Área gourmet",
+          "Armarios",
+          "Lavandería"
+        ]
+      },
+      "en": {
+        "title": "Park Retreat House",
+        "description": "Contemporary spaces, natural light and comfort. An illustrative demo property; contact the team for details.",
+        "features": [
+          "Garden",
+          "Outdoor dining",
+          "Cabinets",
+          "Laundry room"
+        ]
+      },
+      "it": {
+        "title": "Casa Rifugio del Parco",
+        "description": "Spazi contemporanei, luce naturale e comfort. Immobile illustrativo del catalogo dimostrativo; contatta il team per i dettagli.",
+        "features": [
+          "Giardino",
+          "Spazio gourmet",
+          "Armadi",
+          "Lavanderia"
+        ]
+      },
+      "de": {
+        "title": "Haus am Park",
+        "description": "Zeitgemäße Räume, natürliches Licht und Komfort. Beispielimmobilie im Demokatalog; fragen Sie das Team nach Details.",
+        "features": [
+          "Garten",
+          "Grillbereich",
+          "Schränke",
+          "Waschküche"
+        ]
+      }
+    }
+  }
+]

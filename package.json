@@ -1,0 +1,23 @@
+{
+  "name": "confianza-hostinger",
+  "version": "1.0.3",
+  "type": "module",
+  "private": true,
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "build": "node build.mjs",
+    "start": "node server.mjs",
+    "test": "node --test test.mjs security.test.mjs enhancements.test.mjs recovery.test.mjs bootstrap-admin.test.mjs"
+  },
+  "dependencies": {
+    "express": "^5.1.0",
+    "mysql2": "^3.14.0",
+    "qrcode": "^1.5.4",
+    "sharp": "^0.35.5"
+  },
+  "devDependencies": {
+    "jsqr": "^1.4.0"
+  }
+}
