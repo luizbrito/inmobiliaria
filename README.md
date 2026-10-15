@@ -1,5 +1,7 @@
 # Confianza — portal imobiliário e administração
 
+Versão **1.3.1**. [MFA configurável por usuário](ENTREGA-1.3.1.md). [Editor visual de fotos e validação local](ENTREGA-1.3.0.md). [E-mail como etapa inicial, WhatsApp como próxima etapa](ENTREGA-1.2.1.md), com envio desativado até configurar o provedor. A [entrega 1.2.0](ENTREGA-1.2.0.md) registra compartilhamento de PDF, alternativa de navegador, validação MySQL e pendências de produção. A entrega [1.1.0](ENTREGA-1.1.0.md) introduziu apresentações com galeria e QR, perfis públicos, pendências, visitas e relatórios. A versão atual ainda depende das verificações e da publicação na hospedagem.
+
 Frontend leve em HTML, CSS e JavaScript nativo. Backend Express em Node.js 24. Banco principal MySQL/MariaDB, com fotos persistidas no próprio banco. Express, mysql2, sharp e qrcode são as dependências de produção. SQLite é uma alternativa para desenvolvimento em Node.js 24.
 
 ## Funcionalidades entregues
@@ -77,7 +79,7 @@ Na edição de imóvel, use **Idioma do conteúdo** para cadastrar título, desc
 - Limite de tentativas de login e envio público por IP, verificação de origem em operações de escrita e validação dos campos.
 - SQL parametrizado, proteção contra fórmulas em CSV, escape de conteúdo na interface e cabeçalhos de segurança.
 - Envio de JPG, PNG e WebP com até 3 MB por foto e até 20 entradas na galeria. Sharp decodifica a imagem inteira, rejeita arquivos inválidos e animações, limita a 24 milhões de pixels e regrava em WebP de até 2400 × 2400, removendo metadados. Fotos em URLs externas não passam por esse processamento; prefira uploads. Não há serviço de antivírus.
-- MFA TOTP obrigatório para administradores. A senha correta cria apenas um desafio de cinco minutos, sem permissão administrativa; somente um código válido libera a sessão. Segredos são criptografados com AES-256-GCM e códigos usados não são aceitos novamente, inclusive com requisições concorrentes. Editores e corretores continuam com senha. Não há recuperação automática por e-mail.
+- MFA TOTP configurável por usuário em Equipe > Editar > Exigir MFA (`mfaRequired`, booleano). Contas sem essa configuração mantêm o padrão: administradores exigem MFA; editores e corretores usam senha. Apenas administradores alteram a exigência. A alteração revoga todas as sessões da conta, preservando o autenticador cadastrado para futura reativação. A senha correta cria apenas um desafio de cinco minutos, sem permissão administrativa; somente um código válido libera a sessão. Segredos são criptografados com AES-256-GCM e códigos usados não são aceitos novamente, inclusive com requisições concorrentes. Editores e corretores também podem ter MFA ativado individualmente. Não há recuperação automática por e-mail.
 - Auditoria persistida de login, MFA, logout, alterações de equipe, escritas da API e bloqueios de origem. Não registra senhas, códigos, segredos ou conteúdo de contatos. Apenas administradores consultam `/api/audit`; a interface permite baixar o registro em JSON. A trilha não é imutável perante operadores com acesso ao banco.
 - Escritas exigem o cabeçalho Origin igual a PUBLIC_ORIGIN, inclusive chamadas de scripts. Autenticação e autorização são verificações separadas no servidor.
 - Contatos são gravados no painel; **não há envio automático de e-mail**. A equipe deve acompanhar o painel. A conexão WhatsApp abre uma conversa, sem disparos automáticos.
@@ -149,7 +151,7 @@ Se o autenticador for perdido, um operador com acesso ao banco deve parar a apli
 node --env-file=.env recover-mfa.mjs admin@example.com
 ```
 
-Isso revoga as sessões daquele usuário e registra a recuperação na auditoria. Reinicie em acesso restrito e peça ao administrador para entrar com sua senha e cadastrar o fator novamente. Não há endpoint público para remover MFA.
+Isso revoga as sessões daquele usuário e registra a recuperação na auditoria. Reinicie em acesso restrito e peça ao administrador para entrar com sua senha e cadastrar o fator novamente. A recuperação preserva a configuração individual de exigência de MFA.
 
 ## Backups e restauração
 

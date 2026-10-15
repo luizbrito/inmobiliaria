@@ -14,7 +14,7 @@ export async function bootstrapAdmin(store,env=process.env){
  const old=matches[0]||null;
  if(old&&old.role!=='admin')throw Error('A conta existente não é administradora. Revise suas permissões antes de continuar.');
  const salt=randomBytes(16).toString('hex');
- const user={...(old||{id:randomUUID(),name:'Luiz Brito da Rosa',createdAt:new Date().toISOString()}),email,role:'admin',active:true,passwordHash:salt+':'+(await promisify(scryptCallback)(password,salt,64)).toString('hex'),authVersion:(old?.authVersion??0)+1};
+ const user={...(old||{id:randomUUID(),name:'Luiz Brito da Rosa',createdAt:new Date().toISOString()}),email,role:'admin',mfaRequired:true,active:true,passwordHash:salt+':'+(await promisify(scryptCallback)(password,salt,64)).toString('hex'),authVersion:(old?.authVersion??0)+1};
  delete user.mfaSecret;delete user.mfaLastStep;
  const auditId=randomUUID();
  const changes=[{table:'users',id:user.id,old,next:user},{table:'settings',id:marker,old:null,next:{done:true,date:new Date().toISOString()}},{table:'audit',id:auditId,old:null,next:{id:auditId,date:new Date().toISOString(),action:'admin.operator_bootstrap',status:200,userId:user.id,ip:'startup-operator'}}];

@@ -1,11 +1,13 @@
 import express from 'express';
+import {enqueueNotifications} from './core/notifications.mjs';
+import {runEmailNotifications} from './core/email-notifications.mjs';
 import {promisify} from 'node:util';
 import {scrypt as scryptCallback,randomBytes,createHash,timingSafeEqual} from 'node:crypto';
 import {mkdir,writeFile,readFile} from 'node:fs/promises';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {service,initialProperties,defaultSettings} from './core/service.mjs';
-import {newSecret,secretBox,verifyTotp} from './core/security.mjs';
+import {newSecret,secretBox,verifyTotp,requiresMFA} from './core/security.mjs';
 import sharp from 'sharp';
 import QRCode from 'qrcode';
 import {bootstrapAdmin} from './core/bootstrap-admin.mjs';
@@ -13,7 +15,7 @@ const box=secretBox(process.env.MFA_ENCRYPTION_KEY);
 const scrypt=promisify(scryptCallback),root=path.dirname(fileURLToPath(import.meta.url)),assetRoot=process.env.ASSET_ROOT||path.resolve(root,'public');
 const port=Number(process.env.PORT||3000),origin=process.env.PUBLIC_ORIGIN||`http://localhost:${port}`;
 if(process.env.NODE_ENV==='production'&&(!process.env.PUBLIC_ORIGIN||new URL(origin).protocol!=='https:'))throw Error('Produção exige PUBLIC_ORIGIN com HTTPS.');
-const dbType=process.env.DB_DRIVER||'mysql',tables=new Set(['properties','leads','settings','users','sessions','audit','property_internal','visits']);
+const dbType=process.env.DB_DRIVER||'mysql',tables=new Set(['properties','leads','settings','users','sessions','audit','property_internal','visits','notification_jobs']);
 let db;
 if(dbType==='sqlite'){
  const {DatabaseSync}=await import('node:sqlite');const dbPath=process.env.DB_PATH||path.join(root,'data/confianza.sqlite');await mkdir(path.dirname(dbPath),{recursive:true});db=new DatabaseSync(dbPath);db.exec('PRAGMA journal_mode=WAL; PRAGMA busy_timeout=5000');for(const t of tables)db.exec(`CREATE TABLE IF NOT EXISTS ${t}(id TEXT PRIMARY KEY,payload TEXT NOT NULL)`);
@@ -53,7 +55,7 @@ const app=express();app.disable('x-powered-by');app.set('trust proxy',1);
 const sessionsCookie='confianza_session',secure=origin.startsWith('https://'),cookieOptions={httpOnly:true,secure,sameSite:'strict',path:'/',maxAge:8*60*60*1000};
 const tokenHash=t=>createHash('sha256').update(t).digest('hex');
 function cookieToken(req){return(req.headers.get('cookie')||'').split(';').map(x=>x.trim()).find(x=>x.startsWith(sessionsCookie+'='))?.slice(sessionsCookie.length+1);}
-async function getUser(req){const token=cookieToken(req);if(!token||! /^[a-f0-9]{64}$/.test(token))return null;const s=await store.get('sessions',tokenHash(token));if(!s||s.expires<Date.now()||s.pending)return null;const u=await store.get('users',s.userId);return u?.active&&(s.version??0)===(u.authVersion??0)&&(u.role!=='admin'||s.mfa&&u.mfaSecret)?{id:u.id,name:u.name,email:u.email,role:u.role,commissionView:u.commissionView===true,commissionEdit:u.commissionEdit===true,language:u.language||'pt'}:null;}
+async function getUser(req){const token=cookieToken(req);if(!token||! /^[a-f0-9]{64}$/.test(token))return null;const s=await store.get('sessions',tokenHash(token));if(!s||s.expires<Date.now()||s.pending)return null;const u=await store.get('users',s.userId);return u?.active&&(s.version??0)===(u.authVersion??0)&&(!requiresMFA(u)||s.mfa&&u.mfaSecret)?{id:u.id,name:u.name,email:u.email,role:u.role,commissionView:u.commissionView===true,commissionEdit:u.commissionEdit===true,language:u.language||'pt'}:null;}
 async function audit(req,action,status,userId=null){const id=crypto.randomUUID();await store.set('audit',id,{id,date:new Date().toISOString(),action,status,userId,ip:req.ip});}
 let mfaQueue=Promise.resolve();
 async function serialMfa(fn){const prior=mfaQueue;let release;mfaQueue=new Promise(r=>release=r);await prior;try{return await fn();}finally{release();}}
@@ -62,7 +64,9 @@ const media={mode:'node',async put(key,bytes){if(dbType==='mysql')await db.execu
 const limits=new Map();function rate(key,max,ms){const now=Date.now();let x=limits.get(key);if(!x||now>x.expires){x={count:0,expires:now+ms};limits.set(key,x);}return ++x.count<=max;}
 setInterval(()=>{const now=Date.now();for(const [k,v] of limits)if(v.expires<now)limits.delete(k);},60000).unref();
 setInterval(async()=>{try{for(const s of await store.all('sessions'))if(s.expires<Date.now())await store.remove('sessions',s.id);}catch{}},3600000).unref();
-app.use((req,res,next)=>{res.set({'X-Content-Type-Options':'nosniff','Referrer-Policy':'strict-origin-when-cross-origin','X-Frame-Options':'SAMEORIGIN','Permissions-Policy':'camera=(), microphone=(), geolocation=()','Content-Security-Policy':"default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' https: data:; connect-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'self'; form-action 'self'"});if(secure)res.set('Strict-Transport-Security','max-age=31536000');next();});
+let notificationTickRunning=false;
+setInterval(async()=>{if(notificationTickRunning)return;notificationTickRunning=true;try{await enqueueNotifications(store);await runEmailNotifications(store);}catch{console.error('Falha ao preparar fila de notificações.');}finally{notificationTickRunning=false;}},60000).unref();
+app.use((req,res,next)=>{res.set({'X-Content-Type-Options':'nosniff','Referrer-Policy':'strict-origin-when-cross-origin','X-Frame-Options':'SAMEORIGIN','Permissions-Policy':'camera=(), microphone=(), geolocation=()','Content-Security-Policy':"default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' https: data: blob:; connect-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'self'; form-action 'self'"});if(secure)res.set('Strict-Transport-Security','max-age=31536000');next();});
 app.use('/api',(req,res,next)=>{res.set('Cache-Control','no-store');next();},express.raw({type:()=>true,limit:'4mb'}),async(req,res)=>{try{
  const method=req.method,pathname='/api'+req.url.split('?')[0];
  if(!['GET','HEAD'].includes(method)&&req.headers.origin!==origin){await audit(req,'origin.denied',403);return res.status(403).json({error:'Origem inválida.'});}
@@ -73,7 +77,7 @@ app.use('/api',(req,res,next)=>{res.set('Cache-Control','no-store');next();},exp
   const x=await request.json();const u=(await store.all('users')).find(u=>u.email===String(x.email).toLowerCase());
   const valid=await verifyPassword(String(x.password),u?.passwordHash||'00000000000000000000000000000000:'+Buffer.alloc(64).toString('hex'));
   if(!u||!u.active||!valid){await audit(req,'login.denied',401);return res.status(401).json({error:'Credenciais inválidas.'});}
-  const token=randomBytes(32).toString('hex'),id=tokenHash(token),pending=u.role==='admin',secret=pending&&!u.mfaSecret?newSecret():null;
+  const token=randomBytes(32).toString('hex'),id=tokenHash(token),pending=requiresMFA(u),secret=pending&&!u.mfaSecret?newSecret():null;
   const setupUri=secret?`otpauth://totp/Confianza:${encodeURIComponent(u.email)}?secret=${secret}&issuer=Confianza&algorithm=SHA1&digits=6&period=30`:null;
   const setupQr=setupUri?await QRCode.toDataURL(setupUri,{errorCorrectionLevel:'M',margin:4,width:320,color:{dark:'#000000',light:'#ffffff'}}):null;
   await store.set('sessions',id,{id,userId:u.id,version:u.authVersion??0,pending,setupSecret:secret?box.seal(secret):null,expires:Date.now()+(pending?5*60*1000:cookieOptions.maxAge)});await audit(req,pending?'login.mfa_required':'login.success',200,u.id);res.cookie(sessionsCookie,token,{...cookieOptions,maxAge:pending?5*60*1000:cookieOptions.maxAge});return res.json({ok:true,mfaRequired:pending,...(secret?{setupSecret:secret,setupUri,setupQr}:{})});
@@ -81,7 +85,7 @@ app.use('/api',(req,res,next)=>{res.set('Cache-Control','no-store');next();},exp
  if(pathname==='/api/mfa/verify'&&method==='POST')return await serialMfa(async()=>{
   if(!rate('mfa:'+req.ip,10,15*60*1000)){await audit(req,'mfa.throttled',429);return res.status(429).json({error:'Muitas tentativas. Tente novamente mais tarde.'});}
   const token=cookieToken(request),id=token&&tokenHash(token),s=id&&await store.get('sessions',id),u=s&&await store.get('users',s.userId);
-  if(!s?.pending||s.expires<Date.now()||!u?.active||(s.version??0)!==(u.authVersion??0)||u.role!=='admin')return res.status(401).json({error:'Entre novamente para verificar o código.'});
+  if(!s?.pending||s.expires<Date.now()||!u?.active||(s.version??0)!==(u.authVersion??0)||!requiresMFA(u))return res.status(401).json({error:'Entre novamente para verificar o código.'});
   const x=await request.json(),step=verifyTotp(box.open(u.mfaSecret||s.setupSecret),x.code,u.mfaLastStep??-1);
   if(step===null){await audit(req,'mfa.denied',401,u.id);return res.status(401).json({error:'Código inválido ou já utilizado.'});}
   const previous=JSON.stringify(u);u.mfaSecret=u.mfaSecret||s.setupSecret;u.mfaLastStep=step;
@@ -103,7 +107,7 @@ app.use('/api',(req,res,next)=>{res.set('Cache-Control','no-store');next();},exp
  if(pathname.startsWith('/api/users')){
   if(!user)return res.status(401).json({error:'Acesso restrito.'});
   if(user.role!=='admin')return res.status(403).json({error:'Acesso restrito.'});
-  if(method==='GET')return res.json({supported:true,users:(await store.all('users')).map(({passwordHash,mfaSecret,mfaLastStep,...u})=>({...u,mfaEnabled:!!mfaSecret}))});
+  if(method==='GET')return res.json({supported:true,users:(await store.all('users')).map(({passwordHash,mfaSecret,mfaLastStep,...u})=>({...u,mfaRequired:requiresMFA(u),mfaEnabled:!!mfaSecret}))});
   if(method==='POST'||method==='PUT'){
    const x=await request.json(),id=method==='PUT'?pathname.split('/')[3]:crypto.randomUUID();
    const old=method==='PUT'?await store.get('users',id):null;if(method==='PUT'&&!old)return res.status(404).json({error:'Usuário não encontrado.'});
@@ -112,7 +116,9 @@ app.use('/api',(req,res,next)=>{res.set('Cache-Control','no-store');next();},exp
    if(x.password&&(typeof x.password!=='string'||x.password.length<12||x.password.length>200)||!old&&!x.password)return res.status(400).json({error:'A senha deve ter entre 12 e 200 caracteres.'});
    if((await store.all('users')).some(u=>u.email===x.email.toLowerCase()&&u.id!==id))return res.status(400).json({error:'E-mail já cadastrado.'});
    if(id===user.id&&(!x.active||x.role!=='admin'))return res.status(400).json({error:'Você não pode desativar ou rebaixar seu próprio acesso.'});
-   const u={id,name:x.name,email:x.email.toLowerCase(),role:x.role,commissionView:!!x.commissionView||!!x.commissionEdit,commissionEdit:!!x.commissionEdit,language:x.language||old?.language||'pt',active:!!x.active,passwordHash:x.password?await hashPassword(x.password):old.passwordHash,mfaSecret:old?.mfaSecret,mfaLastStep:old?.mfaLastStep,authVersion:(old?.authVersion??0)+(x.password||old?.role!==x.role||!x.active?1:0),createdAt:old?.createdAt||new Date().toISOString()};await audit(req,'users.'+method.toLowerCase()+':'+id,200,user.id);if(old){const updated=await run(`UPDATE users SET payload=? WHERE id=? AND ${dbType==='mysql'?'BINARY payload=BINARY ?':'payload=?'}`,[JSON.stringify(u),id,JSON.stringify(old)]);if((dbType==='sqlite'?updated.changes:updated[0].affectedRows)!==1)return res.status(409).json({error:'Usuário alterado por outra operação. Atualize e tente novamente.'});}else await store.set('users',id,u);if(x.password||old?.role!==u.role||!u.active)for(const s of await store.all('sessions'))if(s.userId===id)await store.remove('sessions',s.id);return res.json({ok:true,id,reauthenticate:id===user.id&&!!x.password});
+   if(x.mfaRequired!==undefined&&typeof x.mfaRequired!=='boolean')return res.status(400).json({error:'mfaRequired deve ser booleano.'});
+   const mfaRequired=x.mfaRequired??(typeof old?.mfaRequired==='boolean'?old.mfaRequired:x.role==='admin'),mfaChanged=!!old&&mfaRequired!==requiresMFA(old);
+   const u={id,name:x.name,email:x.email.toLowerCase(),role:x.role,mfaRequired,publicProfile:old?.publicProfile,commissionView:!!x.commissionView||!!x.commissionEdit,commissionEdit:!!x.commissionEdit,language:x.language||old?.language||'pt',active:!!x.active,passwordHash:x.password?await hashPassword(x.password):old.passwordHash,mfaSecret:old?.mfaSecret,mfaLastStep:old?.mfaLastStep,authVersion:(old?.authVersion??0)+(x.password||old?.role!==x.role||!x.active||mfaChanged?1:0),createdAt:old?.createdAt||new Date().toISOString()};await audit(req,'users.'+method.toLowerCase()+':'+id,200,user.id);if(old){const updated=await run(`UPDATE users SET payload=? WHERE id=? AND ${dbType==='mysql'?'BINARY payload=BINARY ?':'payload=?'}`,[JSON.stringify(u),id,JSON.stringify(old)]);if((dbType==='sqlite'?updated.changes:updated[0].affectedRows)!==1)return res.status(409).json({error:'Usuário alterado por outra operação. Atualize e tente novamente.'});}else await store.set('users',id,u);if(mfaChanged)await audit(req,'users.mfa.'+(mfaRequired?'enabled:':'disabled:')+id,200,user.id);if(x.password||old?.role!==u.role||!u.active||mfaChanged)for(const s of await store.all('sessions'))if(s.userId===id)await store.remove('sessions',s.id);return res.json({ok:true,id,reauthenticate:id===user.id&&(!!x.password||mfaChanged)});
   }
  }
  if(pathname==='/api/leads'&&method==='POST'&&!rate('lead:'+req.ip,20,60*60*1000))return res.status(429).json({error:'Muitas solicitações. Tente novamente mais tarde.'});

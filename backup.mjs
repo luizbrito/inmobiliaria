@@ -1,7 +1,7 @@
 import {readFile,writeFile,mkdir,readdir,unlink} from 'node:fs/promises';
 import path from 'node:path';
 import {secretBox} from './core/security.mjs';
-const [action,file]=process.argv.slice(2),names=['properties','leads','settings','users','sessions','audit','property_internal','visits'];
+const [action,file]=process.argv.slice(2),names=['properties','leads','settings','users','sessions','audit','property_internal','visits','notification_jobs'];
 if(!['backup','restore'].includes(action)||!file)throw Error('Uso: node --env-file=.env backup.mjs backup|restore arquivo');
 const box=secretBox(process.env.BACKUP_ENCRYPTION_KEY),sqlite=process.env.DB_DRIVER==='sqlite';
 let db;
@@ -15,7 +15,7 @@ try{
  if(action==='backup'){
   if(sqlite)db.exec('BEGIN IMMEDIATE');else{await db.query('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ');await db.query('START TRANSACTION WITH CONSISTENT SNAPSHOT');}
   const data={version:1,date:new Date().toISOString(),tables:{},images:[]};
-  for(const name of names)data.tables[name]=await query(`SELECT id,payload FROM ${name}`);
+  for(const name of names){try{data.tables[name]=await query(`SELECT id,payload FROM ${name}`);}catch(error){if(name==='notification_jobs'&&(error.code==='ER_NO_SUCH_TABLE'||/no such table: notification_jobs/.test(error.message)))data.tables[name]=[];else throw error;}}
   // Sessions are deliberately not restored: every user signs in again after recovery.
   data.tables.sessions=[];
   if(sqlite){for(const key of await readdir(uploads)){if(/^[a-z\d-]+\.(jpg|png|webp)$/.test(key))data.images.push({id:key,bytes:(await readFile(path.join(uploads,key))).toString('base64'),content_type:key.endsWith('.jpg')?'image/jpeg':key.endsWith('.png')?'image/png':'image/webp'});}}
@@ -26,7 +26,7 @@ try{
  }else{
   const data=JSON.parse(box.open(await readFile(file,'utf8')));
   if(data.version!==1||!data.tables||!Array.isArray(data.images))throw Error('Backup inválido.');
-  for(const name of ['property_internal','visits'])data.tables[name]??=[];
+  for(const name of ['property_internal','visits','notification_jobs'])data.tables[name]??=[];
   for(const name of names){if(!Array.isArray(data.tables[name]))throw Error('Tabela ausente.');for(const row of data.tables[name]){if(typeof row.id!=='string'||typeof row.payload!=='string')throw Error('Registro inválido.');JSON.parse(row.payload);}}
   for(const image of data.images)if(!/^[a-z\d-]+\.(jpg|png|webp)$/.test(image.id)||typeof image.bytes!=='string'||!['image/jpeg','image/png','image/webp'].includes(image.content_type))throw Error('Imagem inválida.');
   if(sqlite){await mkdir(uploads,{recursive:true});if((await readdir(uploads)).length)throw Error('Restaure em uma pasta de fotos vazia.');db.exec('BEGIN IMMEDIATE');}

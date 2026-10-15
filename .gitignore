@@ -1,5 +1,8 @@
 node_modules/
 data/
-.env
-.env.local
 releases/
+.env
+.env.*
+__pycache__/
+output/
+tmp/

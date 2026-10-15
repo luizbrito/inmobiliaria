@@ -14,5 +14,5 @@ try{
  await run('UPDATE users SET payload=? WHERE id=?',[JSON.stringify(user),user.id]);
  for(const row of await query('SELECT id,payload FROM sessions'))if(JSON.parse(row.payload).userId===user.id)await run('DELETE FROM sessions WHERE id=?',[row.id]);
  const id=crypto.randomUUID();await run('INSERT INTO audit(id,payload) VALUES(?,?)',[id,JSON.stringify({id,date:new Date().toISOString(),action:'mfa.operator_reset',status:200,userId:user.id,ip:'offline-operator'})]);
- if(sqlite)db.exec('COMMIT');else await db.commit();console.log('Sessões revogadas. O administrador deve cadastrar MFA novamente ao entrar.');
+ if(sqlite)db.exec('COMMIT');else await db.commit();console.log('Sessões revogadas. Se o MFA estiver exigido, o administrador deve cadastrá-lo novamente ao entrar.');
 }catch(error){try{if(sqlite)db.exec('ROLLBACK');else await db.rollback();}catch{}throw error;}finally{if(sqlite)db.close();else await db.end();}

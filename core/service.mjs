@@ -2,6 +2,9 @@ import {commissionAccess,commissionState,activeVisit,visitStatus} from './enhanc
 import seed from './seed.json' with {type:'json'};
 import defaults from './default-settings.json' with {type:'json'};
 import {staffRoles,validateInternal,publicProperty,transitionLead,validateVisit} from './operations.mjs';
+import {publicBroker,validatePublicProfile,operationalReport,languages} from './commercial.mjs';
+import QRCode from 'qrcode';
+import {notificationAPI} from './notifications.mjs';
 export const initialProperties=seed;
 export const defaultSettings=defaults;
 export function validateProperty(x){
@@ -32,8 +35,27 @@ export async function service(req,store,auth,media){
   const origin=req.headers.get('origin');if(origin&&origin!==url.origin)return json({error:'Origem inválida.'},403);
  }
  try{
- if(path[0]==='session')return json({authenticated:!!admin,id:admin?.id||null,role:admin?.role||null,name:admin?.name||'',language:admin?.language||'pt',commissionPermissions:commissionAccess(admin),mode:media.mode});
+ for(let index=0;index<path.length;index++)path[index]=decodeURIComponent(path[index]);
+ if(path[0]==='session')return json({authenticated:!!admin,id:admin?.id||null,role:admin?.role||null,name:admin?.name||'',email:admin?.email||'',language:admin?.language||'pt',commissionPermissions:commissionAccess(admin),mode:media.mode});
  if(path[0]==='health')return json({ok:true});
+ if(path[0]==='notifications')return await notificationAPI(req,store,admin,path);
+ if(path[0]==='commercial'&&path[1]==='brokers'){
+  if(method==='GET')return json((await store.all('users')).map(publicBroker).filter(Boolean));
+  if(!admin)return json({error:'Acesso restrito.'},401);
+  if(admin.role!=='admin')return json({error:'Apenas administradores podem alterar perfis públicos.'},403);
+  if(method==='PUT'){const old=await store.get('users',path[2]);if(!old)return json({error:'Corretor não encontrado.'},404);const x=await req.json();if(x.expectedProfile!==undefined&&JSON.stringify(x.expectedProfile)!==JSON.stringify(old.publicProfile||null))return json({error:'Perfil alterado. Atualize e tente novamente.'},409);const next={...old,publicProfile:validatePublicProfile(x.profile)};if(!await store.atomicCompareSet([{table:'users',id:old.id,old,next}]))return json({error:'Perfil alterado. Atualize e tente novamente.'},409);return json(next.publicProfile);}
+ }
+ if(path[0]==='commercial'&&path[1]==='property'&&method==='GET'){
+  const p=await store.get('properties',path[2]);if(!p||p.status!=='Publicado')return json({error:'Imóvel indisponível.'},404);
+  const canonical=new URL('/imovel/'+encodeURIComponent(p.id),url.origin).href;
+  return json({property:publicProperty(p),url:canonical,qr:await QRCode.toDataURL(canonical,{errorCorrectionLevel:'M',margin:4,width:320})});
+ }
+ if(path[0]==='reports'&&method==='GET'){
+  if(!admin)return json({error:'Acesso restrito.'},401);if(!staffRoles.includes(admin.role))return json({error:'Acesso restrito.'},403);
+  const [leads,ledgers,properties]=await Promise.all(['leads','visits','properties'].map(t=>store.all(t)));
+  const internals=commissionAccess(admin).view?await Promise.all(properties.map(async p=>({id:p.id,...await store.get('property_internal',p.id)}))):[];
+  return json(operationalReport({leads,visits:ledgers.flatMap(l=>l.events||[]),properties,internals,user:admin,query:url.searchParams}));
+ }
  if(path[0]==='media'&&method==='GET')return await media.get(path[1]);
  if(path[0]==='uploads'&&method==='POST'){
   if(!admin)return json({error:'Acesso restrito.'},401);
@@ -49,7 +71,7 @@ export async function service(req,store,auth,media){
   if(method==='GET'){let rows=await store.all('properties');if(!rows.length&&!await store.get('settings','initialized')){await store.seed(seed);await store.set('settings','initialized',{done:true});rows=await store.all('properties');}const internalView=admin&&staffRoles.includes(admin.role)&&url.searchParams.get('admin')==='1';rows=rows.filter(x=>internalView||x.status==='Publicado');return json(await Promise.all(rows.map(async x=>internalView?{...publicProperty(x),internal:privateInternal(await store.get('property_internal',x.id)||validateInternal(),admin)} :publicProperty(x))));}
   if(!admin)return json({error:'Acesso restrito.'},401);
   if(!['admin','editor'].includes(admin.role))return json({error:'Você não tem permissão para editar imóveis.'},403);
-  if(method==='POST'||method==='PUT'){const input=await req.json(),x=publicProperty(validateProperty(input));if(method==='PUT'&&x.id!==path[1])return json({error:'ID inválido.'},400);const old=await store.get('properties',x.id),oldInternal=await store.get('property_internal',x.id);if(method==='PUT'&&!old)return json({error:'Imóvel não encontrado.'},404);if(input.internal?.commission&&!commissionAccess(admin).edit)return json({error:'Sem permissão para alterar comissões.'},403);const internal=validateInternal({...(input.internal||oldInternal||{}),commission:input.internal?.commission||oldInternal?.commission||{saleValue:0,participants:[]}});internal.commission= input.internal?.commission?commissionState(internal.commission,oldInternal?.commission,admin):oldInternal?.commission||internal.commission;if(!await store.atomicCompareSet([{table:'properties',id:x.id,old,next:x},{table:'property_internal',id:x.id,old:oldInternal,next:internal}]))return json({error:'Imóvel alterado por outra operação. Atualize e tente novamente.'},409);return json({...x,internal:privateInternal(internal,admin)},method==='POST'?201:200);}
+  if(method==='POST'||method==='PUT'){const input=await req.json(),x=publicProperty(validateProperty(input));if(method==='PUT'&&x.id!==path[1])return json({error:'ID inválido.'},400);const old=await store.get('properties',x.id),oldInternal=await store.get('property_internal',x.id);if(method==='PUT'&&!old)return json({error:'Imóvel não encontrado.'},404);if(method==='POST'&&old)return json({error:'ID já cadastrado.'},409);if(method==='PUT'&&input.expectedUpdatedAt!==undefined&&input.expectedUpdatedAt!==(old.updatedAt||null))return json({error:'Imóvel alterado. Atualize a página antes de salvar novamente.'},409);if(old?.updatedAt)x.updatedAt=new Date(Math.max(Date.now(),Date.parse(old.updatedAt)+1)).toISOString();if(input.internal?.commission&&!commissionAccess(admin).edit)return json({error:'Sem permissão para alterar comissões.'},403);const internal=validateInternal({...(input.internal||oldInternal||{}),commission:input.internal?.commission||oldInternal?.commission||{saleValue:0,participants:[]}});internal.commission= input.internal?.commission?commissionState(internal.commission,oldInternal?.commission,admin):oldInternal?.commission||internal.commission;if(!await store.atomicCompareSet([{table:'properties',id:x.id,old,next:x},{table:'property_internal',id:x.id,old:oldInternal,next:internal}]))return json({error:'Imóvel alterado por outra operação. Atualize e tente novamente.'},409);return json({...x,internal:privateInternal(internal,admin)},method==='POST'?201:200);}
   if(method==='DELETE'){const old=await store.get('properties',path[1]),ledger=await store.get('visits',path[1]),internal=await store.get('property_internal',path[1]);if(!old)return json({error:'Imóvel não encontrado.'},404);if(ledger?.events?.length)return json({error:'Este imóvel possui histórico de visitas. Altere sua situação para preservar os registros.'},409);if(!await store.atomicCompareSet([{table:'properties',id:path[1],old,next:null},{table:'visits',id:path[1],old:ledger,next:null},{table:'property_internal',id:path[1],old:internal,next:null}]))return json({error:'Imóvel alterado por outra operação. Atualize e tente novamente.'},409);return json({ok:true});}
  }
  if(path[0]==='settings'){
@@ -71,9 +93,11 @@ export async function service(req,store,auth,media){
   if(!admin)return json({error:'Acesso restrito.'},401);
   if(!['admin','editor','agent'].includes(admin.role))return json({error:'Acesso restrito.'},403);
   if(method==='GET')return json((await store.all('leads')).sort((a,b)=>b.date.localeCompare(a.date)));
-  if(method==='PUT'){const x=await req.json();const lead=await store.get('leads',path[1]);if(!lead)return json({error:'Contato não encontrado.'},404);if(x.status==='Visita agendada'&&!(await store.all('visits')).some(l=>(l.events||[]).some(v=>v.leadId===lead.id&&activeVisit(v))))throw Error('Cadastre a visita no calendário antes de mover o contato.');let next=x.status?transitionLead(lead,x.status,admin):{...lead};
+  if(method==='PUT'){const x=await req.json();const lead=await store.get('leads',path[1]);if(!lead)return json({error:'Contato não encontrado.'},404);if(x.expectedRevision!==undefined&&x.expectedRevision!==(lead.revision||0))return json({error:'Contato alterado. Atualize e tente novamente.'},409);if(x.status==='Visita agendada'&&!(await store.all('visits')).some(l=>(l.events||[]).some(v=>v.leadId===lead.id&&activeVisit(v))))throw Error('Cadastre a visita no calendário antes de mover o contato.');let next=x.status?{...transitionLead(lead,x.status,admin)}:{...lead};
    if(x.responsibleId!==undefined){const u=await store.get('users',String(x.responsibleId));if(!u?.active||!staffRoles.includes(u.role))throw Error('Selecione um responsável ativo.');if(lead.responsible?.id!==u.id){next={...next,responsible:{id:u.id,name:u.name},history:[...(next.history||[]),{date:new Date().toISOString(),actorId:admin.id,actorName:admin.name,action:'Responsável transferido',fromResponsible:lead.responsible||null,toResponsible:{id:u.id,name:u.name}}]};}}
    if(x.followUpAt!==undefined){const date=x.followUpAt?Date.parse(x.followUpAt):null;if(date!==null&&(!Number.isFinite(date)||date<Date.now()))throw Error('Lembrete deve estar no futuro.');next.followUpAt=date?new Date(date).toISOString():null;next.history=[...(next.history||[]),{date:new Date().toISOString(),actorId:admin.id,actorName:admin.name,action:date?'Lembrete criado':'Lembrete concluído'}];}
+   if(x.commercialEvent){const event=x.commercialEvent;if(!['Apresentação preparada','Compartilhamento iniciado'].includes(event.action)||!languages.includes(event.language))throw Error('Evento comercial inválido.');const p=await store.get('properties',event.propertyId);if(!p||p.status!=='Publicado')throw Error('Imóvel indisponível.');next.history=[...(next.history||[]),{date:new Date().toISOString(),actorId:admin.id,actorName:admin.name,action:event.action,propertyId:p.id,propertyTitle:p.title,language:event.language}];}
+   next.revision=(lead.revision||0)+1;
 if(!await store.atomicCompareSet([{table:'leads',id:lead.id,old:lead,next}]))return json({error:'Contato alterado por outra operação. Atualize e tente novamente.'},409);return json(next);}
   if(method==='DELETE'){await store.remove('leads',path[1]);return json({ok:true});}
  }
@@ -86,12 +110,12 @@ if(!await store.atomicCompareSet([{table:'leads',id:lead.id,old:lead,next}]))ret
   if(method==='GET')return json((await store.all('visits')).flatMap(l=>(l.events||[]).map(v=>({...v,status:visitStatus(v)}))).sort((a,b)=>a.startAt.localeCompare(b.startAt)));
   if(method==='POST'||method==='PUT'){
    const x=await req.json(),property=await store.get('properties',String(x.propertyId||''));if(!property)return json({error:'Imóvel não encontrado.'},404);
-   const ledger=await store.get('visits',property.id),events=ledger?.events||[],old=method==='PUT'?events.find(v=>v.id===path[1]):null;if(method==='PUT'&&!old)return json({error:'Visita não encontrada.'},404);
-   const internal=await store.get('property_internal',property.id),visit=validateVisit(x,property,internal,events,admin,old);
+   const ledger=await store.get('visits',property.id),events=ledger?.events||[],old=method==='PUT'?events.find(v=>v.id===path[1]):null;if(method==='PUT'&&!old)return json({error:'Visita não encontrada.'},404);if(old&&x.expectedRevision!==undefined&&x.expectedRevision!==(old.revision||0))return json({error:'Visita alterada. Atualize e tente novamente.'},409);
+   const internal=await store.get('property_internal',property.id),visit={...validateVisit(x,property,internal,events,admin,old),revision:(old?.revision||0)+1};
    const lead=visit.leadId?await store.get('leads',visit.leadId):null;if(visit.leadId&&!lead)throw Error('Contato não encontrado.');if(lead?.propertyId&&lead.propertyId!==property.id)throw Error('A visita deve corresponder ao imóvel do contato.');
    const changes=[{table:'properties',id:property.id,old:property,next:property},{table:'property_internal',id:property.id,old:internal,next:internal},{table:'visits',id:property.id,old:ledger,next:{events:[...events.filter(v=>v.id!==visit.id),visit]}}];
-   if(lead&&activeVisit(visit)){let next=transitionLead(lead,'Visita agendada',admin);if(!next.responsible)next={...next,responsible:{id:admin.id,name:admin.name}};changes.push({table:'leads',id:lead.id,old:lead,next});}
-   if(lead&&visit.status==='Cancelada'&&lead.status==='Visita agendada'&&!events.some(v=>v.id!==visit.id&&v.leadId===lead.id&&activeVisit(v)))changes.push({table:'leads',id:lead.id,old:lead,next:{...transitionLead(lead,'Em atendimento',admin),...(lead.responsible?{responsible:lead.responsible}:{})}});
+   if(lead&&activeVisit(visit)){let next={...transitionLead(lead,'Visita agendada',admin)};if(!next.responsible)next={...next,responsible:{id:admin.id,name:admin.name}};next.revision=(lead.revision||0)+1;changes.push({table:'leads',id:lead.id,old:lead,next});}
+   if(lead&&visit.status==='Cancelada'&&lead.status==='Visita agendada'&&!events.some(v=>v.id!==visit.id&&v.leadId===lead.id&&activeVisit(v)))changes.push({table:'leads',id:lead.id,old:lead,next:{...transitionLead(lead,'Em atendimento',admin),revision:(lead.revision||0)+1,...(lead.responsible?{responsible:lead.responsible}:{})}});
    if(!await store.atomicCompareSet(changes))return json({error:'Agenda alterada por outra operação. Atualize e tente novamente.'},409);return json(visit,old?200:201);
   }
  }
