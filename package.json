@@ -1,6 +1,6 @@
 {
   "name": "confianza-hostinger",
-  "version": "1.3.1",
+  "version": "1.4.0",
   "type": "module",
   "private": true,
   "engines": {
@@ -9,7 +9,7 @@
   "scripts": {
     "build": "node build.mjs",
     "start": "node server.mjs",
-    "test": "node --test test.mjs security.test.mjs enhancements.test.mjs recovery.test.mjs bootstrap-admin.test.mjs commercial.test.mjs notifications.test.mjs backup-compatibility.test.mjs email-notifications.test.mjs photo-editor.test.mjs",
+    "test": "node --test test.mjs security.test.mjs enhancements.test.mjs recovery.test.mjs bootstrap-admin.test.mjs commercial.test.mjs notifications.test.mjs backup-compatibility.test.mjs email-notifications.test.mjs photo-editor.test.mjs team-workflows.test.mjs whatsapp-qr.test.mjs",
     "test:mysql": "node scripts/verify-mysql.mjs"
   },
   "dependencies": {
@@ -21,5 +21,8 @@
   },
   "devDependencies": {
     "jsqr": "^1.4.0"
+  },
+  "optionalDependencies": {
+    "@whiskeysockets/baileys": "7.0.0-rc14"
   }
 }

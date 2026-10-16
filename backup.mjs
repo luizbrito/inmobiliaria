@@ -17,7 +17,7 @@ try{
   const data={version:1,date:new Date().toISOString(),tables:{},images:[]};
   for(const name of names){try{data.tables[name]=await query(`SELECT id,payload FROM ${name}`);}catch(error){if(name==='notification_jobs'&&(error.code==='ER_NO_SUCH_TABLE'||/no such table: notification_jobs/.test(error.message)))data.tables[name]=[];else throw error;}}
   // Sessions are deliberately not restored: every user signs in again after recovery.
-  data.tables.sessions=[];
+  data.tables.sessions=[];data.tables.settings=data.tables.settings.filter(row=>!row.id.startsWith('password-reset-')&&!['whatsapp-qr-auth','whatsapp-qr-lease'].includes(row.id));
   if(sqlite){for(const key of await readdir(uploads)){if(/^[a-z\d-]+\.(jpg|png|webp)$/.test(key))data.images.push({id:key,bytes:(await readFile(path.join(uploads,key))).toString('base64'),content_type:key.endsWith('.jpg')?'image/jpeg':key.endsWith('.png')?'image/png':'image/webp'});}}
   else data.images=(await query('SELECT id,bytes,content_type FROM image_files')).map(x=>({...x,bytes:x.bytes.toString('base64')}));
   await writeFile(file,box.seal(JSON.stringify(data)),{flag:'wx',mode:0o600});
@@ -26,7 +26,7 @@ try{
  }else{
   const data=JSON.parse(box.open(await readFile(file,'utf8')));
   if(data.version!==1||!data.tables||!Array.isArray(data.images))throw Error('Backup inválido.');
-  for(const name of ['property_internal','visits','notification_jobs'])data.tables[name]??=[];
+  for(const name of ['property_internal','visits','notification_jobs'])data.tables[name]??=[];data.tables.settings=data.tables.settings.filter(row=>!row.id.startsWith('password-reset-')&&!['whatsapp-qr-auth','whatsapp-qr-lease'].includes(row.id));
   for(const name of names){if(!Array.isArray(data.tables[name]))throw Error('Tabela ausente.');for(const row of data.tables[name]){if(typeof row.id!=='string'||typeof row.payload!=='string')throw Error('Registro inválido.');JSON.parse(row.payload);}}
   for(const image of data.images)if(!/^[a-z\d-]+\.(jpg|png|webp)$/.test(image.id)||typeof image.bytes!=='string'||!['image/jpeg','image/png','image/webp'].includes(image.content_type))throw Error('Imagem inválida.');
   if(sqlite){await mkdir(uploads,{recursive:true});if((await readdir(uploads)).length)throw Error('Restaure em uma pasta de fotos vazia.');db.exec('BEGIN IMMEDIATE');}

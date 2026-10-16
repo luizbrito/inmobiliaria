@@ -1,3 +1,4 @@
+import {teamPhrases} from './team-i18n.js?v=20261015-7';
 import {enhancementPhrases} from './enhancements-i18n.js?v=20261015-5';
 export const locales={pt:'pt-BR',es:'es-PY',en:'en-US',it:'it-IT',de:'de-DE'};
 export const languageNames={pt:'Português',es:'Español',en:'English',it:'Italiano',de:'Deutsch'};
@@ -38,3 +39,5 @@ Object.assign(phrases,{"Idioma padrão":["Idioma predeterminado","Default langua
 Object.assign(phrases,{"Imóvel alterado. Atualize a página antes de salvar novamente.":["El inmueble ha cambiado. Actualice la página antes de guardar de nuevo.","Property changed. Refresh the page before saving again.","Immobile modificato. Aggiorna la pagina prima di salvare di nuovo.","Immobilie geändert. Laden Sie die Seite vor dem erneuten Speichern neu."]});
 
 Object.assign(phrases,{"Exigir MFA":["Exigir MFA","Require MFA","Richiedi MFA","MFA erforderlich"],"Desmarcado: entra com e-mail e senha. Alterar esta op\u00e7\u00e3o encerra as sess\u00f5es da conta.":["Desmarcado: accede con correo y contrase\u00f1a. Cambiar esta opci\u00f3n cierra las sesiones de la cuenta.","Unchecked: sign in with email and password. Changing this option ends the account sessions.","Deselezionato: accedi con email e password. Modificare questa opzione termina le sessioni dell’account.","Deaktiviert: Anmeldung mit E-Mail und Passwort. Eine \u00c4nderung beendet die Sitzungen des Kontos."]});
+
+Object.assign(phrases,teamPhrases);

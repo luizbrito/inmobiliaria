@@ -2,6 +2,10 @@
 
 Data: 15/10/2026. Base analisada: versão 1.0.3.
 
+## Execução local — versão 1.4.0
+
+Seções 20 a 28 implementadas localmente, incluindo conversas QR do complemento 26.1. Estados de implementação, testes simulados e pendências externas estão separados em [ENTREGA-1.4.0.md](ENTREGA-1.4.0.md). Nenhuma publicação, conexão de conta ou mensagem real.
+
 ## Ajuste de canal — versão 1.2.1
 
 O usuário definiu **e-mail inicialmente, WhatsApp na próxima etapa**, usando **Hostinger Email**. O transporte SMTP e a preferência individual foram implementados sobre a fila, com **52 testes aprovados** e envio real desativado. Modelo ajustado para `smtp.hostinger.com:465` com TLS. Remetente, credenciais do servidor e destinatário de teste ainda precisam ser definidos antes da ativação. Detalhes: [ENTREGA-1.2.1.md](ENTREGA-1.2.1.md). A opção de navegador permanece alternativa; WhatsApp automático ainda não está implementado.
@@ -382,79 +386,117 @@ Entrega local: [ENTREGA-1.3.1.md](ENTREGA-1.3.1.md).
 
 ## 20. Edição de imóveis em tela inteira
 
-- [ ] Abrir o cadastro e a edição de imóveis em uma página dedicada que ocupe toda a área disponível da tela, substituindo o popup atual, sem exigir o modo fullscreen do navegador.
-- [ ] Organizar os campos em seções claras: dados gerais, localização, descrição e traduções, fotos, publicação e informações internas.
-- [ ] Manter ações de salvar, cancelar e voltar à lista facilmente acessíveis em computador e celular.
-- [ ] Preservar prévias, seleção da imagem principal, reordenação das fotos e permissões existentes.
-- [ ] Avisar antes de sair com alterações não salvas; em caso de erro ao salvar, manter os dados preenchidos.
-- [ ] Permitir acesso direto à edição pela URL, com autenticação e autorização, e preservar filtros da listagem ao retornar.
-- [ ] Validar navegação, teclado, responsividade, uploads e proteção contra edição concorrente.
+Página dedicada, navegação, filtros, fonte ampliada, fotos e conflitos validados no Chrome/viewport móvel. Ver [entrega 1.4.0](ENTREGA-1.4.0.md).
+
+- [x] Abrir o cadastro e a edição de imóveis em uma página dedicada que ocupe toda a área disponível da tela, substituindo o popup atual, sem exigir o modo fullscreen do navegador.
+- [x] Organizar os campos em seções claras: dados gerais, localização, descrição e traduções, fotos, publicação e informações internas.
+- [x] Manter ações de salvar, cancelar e voltar à lista facilmente acessíveis em computador e celular.
+- [x] Preservar prévias, seleção da imagem principal, reordenação das fotos e permissões existentes.
+- [x] Avisar antes de sair com alterações não salvas; em caso de erro ao salvar, manter os dados preenchidos.
+- [x] Permitir acesso direto à edição pela URL, com autenticação e autorização, e preservar filtros da listagem ao retornar.
+- [x] Validar navegação, teclado, responsividade, uploads e proteção contra edição concorrente.
 
 ## 21. Acessibilidade para a equipe
 
-- [ ] Oferecer ajuste de tamanho da fonte e controles com áreas de toque maiores, persistindo a preferência por usuário.
-- [ ] Disponibilizar uma apresentação simplificada dos formulários, com campos agrupados e explicações claras, sem retirar funcionalidades necessárias.
-- [ ] Garantir contraste, foco visível, rótulos, navegação por teclado e mensagens de erro compreensíveis.
+Preferências por conta, teclado, foco, rótulos, modo simplificado e fonte 140% conferidos. Leitor de tela real e aparelhos físicos continuam pendentes; a árvore de acessibilidade não os substitui.
+
+- [x] Oferecer ajuste de tamanho da fonte e controles com áreas de toque maiores, persistindo a preferência por usuário.
+- [x] Disponibilizar uma apresentação simplificada dos formulários, com campos agrupados e explicações claras, sem retirar funcionalidades necessárias.
+- [x] Garantir contraste, foco visível, rótulos, navegação por teclado e mensagens de erro compreensíveis.
 - [ ] Validar os fluxos principais em computador e celular, incluindo uso com fonte ampliada e leitor de tela.
 
 ## 22. Recuperação de senha por e-mail
 
-- [ ] Implementar solicitação e redefinição de senha por e-mail usando o SMTP da Hostinger já previsto no projeto.
-- [ ] Usar links de uso único com validade curta, armazenando somente o hash do token e aplicando limite de tentativas.
-- [ ] Mostrar resposta uniforme para e-mails cadastrados e não cadastrados, evitando expor contas existentes.
-- [ ] Invalidar sessões e tokens anteriores após a troca da senha, preservar a exigência individual de MFA e registrar auditoria sem segredos.
-- [ ] Validar expiração, reutilização, falha de envio e recuperação para contas com e sem MFA.
+Implementação SMTP e segurança validadas com transportes simulados e API local. Configurar Hostinger Email e autorizar destinatário de teste antes do recebimento real; nenhum e-mail foi enviado.
+
+- [x] Implementar solicitação e redefinição de senha por e-mail usando o SMTP da Hostinger já previsto no projeto.
+- [x] Usar links de uso único com validade curta, armazenando somente o hash do token e aplicando limite de tentativas.
+- [x] Mostrar resposta uniforme para e-mails cadastrados e não cadastrados, evitando expor contas existentes.
+- [x] Invalidar sessões e tokens anteriores após a troca da senha, preservar a exigência individual de MFA e registrar auditoria sem segredos.
+- [x] Validar expiração, reutilização, falha de envio e recuperação para contas com e sem MFA.
 
 ## 23. Histórico e recuperação de versões dos imóveis
 
-- [ ] Registrar quem alterou o imóvel, quando e quais campos foram modificados, incluindo preço, descrição, fotos, ordem e status.
-- [ ] Exibir comparação entre versões com acesso limitado às permissões de cada usuário, protegendo informações internas.
-- [ ] Permitir recuperar uma versão anterior como nova alteração, mantendo o histórico e verificando conflitos com edições recentes.
-- [ ] Preservar as fotos necessárias à recuperação das versões e definir política de retenção e armazenamento.
-- [ ] Validar restauração de dados e fotos, auditoria, permissões e compatibilidade com backups.
+Histórico, comparação, recuperação concorrente, permissões e backup/restauração SQLite validados. Retenção de 100 versões; fotos não são apagadas automaticamente. Recuperação conserva comissões/pagamentos atuais. MySQL permanece pendente.
+
+- [x] Registrar quem alterou o imóvel, quando e quais campos foram modificados, incluindo preço, descrição, fotos, ordem e status.
+- [x] Exibir comparação entre versões com acesso limitado às permissões de cada usuário, protegendo informações internas.
+- [x] Permitir recuperar uma versão anterior como nova alteração, mantendo o histórico e verificando conflitos com edições recentes.
+- [x] Preservar as fotos necessárias à recuperação das versões e definir política de retenção e armazenamento.
+- [x] Validar restauração de dados e fotos, auditoria, permissões e compatibilidade com backups.
 
 ## 24. Avisos de cadastro incompleto
 
-- [ ] Indicar campos ausentes no cadastro e na listagem, incluindo fotos, localização e descrição, com links para corrigir cada pendência.
-- [ ] Diferenciar requisitos obrigatórios para publicação de recomendações de qualidade.
-- [ ] Respeitar imóveis com preço sob consulta e as regras existentes para cadastros sem fotos.
-- [ ] Verificar traduções e imagem principal; validar requisitos também no servidor antes da publicação.
-- [ ] Permitir salvar rascunhos incompletos e apresentar mensagens claras ao tentar publicar.
+Rascunho incompleto e requisitos de publicação validados no servidor e navegador. Fotos, descrição, localização e traduções são recomendações; Sob consulta e fallback sem fotos preservados.
+
+- [x] Indicar campos ausentes no cadastro e na listagem, incluindo fotos, localização e descrição, com links para corrigir cada pendência.
+- [x] Diferenciar requisitos obrigatórios para publicação de recomendações de qualidade.
+- [x] Respeitar imóveis com preço sob consulta e as regras existentes para cadastros sem fotos.
+- [x] Verificar traduções e imagem principal; validar requisitos também no servidor antes da publicação.
+- [x] Permitir salvar rascunhos incompletos e apresentar mensagens claras ao tentar publicar.
 
 ## 25. Organização e acompanhamento de contatos
 
-- [ ] Identificar possíveis interessados duplicados por e-mail e telefone normalizados e permitir revisão antes de unificar registros.
-- [ ] Preservar histórico, responsáveis, consentimentos e vínculos com imóveis e visitas ao unificar contatos.
-- [ ] Registrar conversas e interações, distinguindo anotações manuais de mensagens efetivamente enviadas por integração.
-- [ ] Mostrar último atendimento, próxima ação e contatos sem retorno há um prazo configurável.
-- [ ] Criar filtros e lembretes para contatos pendentes, evitando alertas repetidos e respeitando permissões.
+Unificação transacional, histórico, consentimentos, visitas, interações manuais, filtros e ausência de retorno validados localmente. A origem fica arquivada; lembretes da origem deixam de ser válidos.
+
+- [x] Identificar possíveis interessados duplicados por e-mail e telefone normalizados e permitir revisão antes de unificar registros.
+- [x] Preservar histórico, responsáveis, consentimentos e vínculos com imóveis e visitas ao unificar contatos.
+- [x] Registrar conversas e interações, distinguindo anotações manuais de mensagens efetivamente enviadas por integração.
+- [x] Mostrar último atendimento, próxima ação e contatos sem retorno há um prazo configurável.
+- [x] Criar filtros e lembretes para contatos pendentes, evitando alertas repetidos e respeitando permissões.
 
 ## 26. Notificações por WhatsApp
 
+Adaptador oficial Meta implementado, com simulação, consentimento, modelos nos cinco idiomas, webhook assinado e testes de falhas/duplicação. Credenciais, modelos aprovados, teste real e conferência de custos continuam pendentes. Nenhum envio real foi realizado.
+
 - [ ] Ampliar a etapa de notificações por e-mail com envio pelo WhatsApp por integração oficial, escolhendo provedor e configurando credenciais fora do código.
-- [ ] Registrar consentimento e preferência de canal, com opção de deixar de receber mensagens.
+- [x] Registrar consentimento e preferência de canal, com opção de deixar de receber mensagens.
 - [ ] Enviar lembretes de visitas e retornos com modelos aprovados quando exigidos pelo provedor, nos idiomas disponíveis.
-- [ ] Respeitar horários, limites, cancelamentos e reagendamentos, impedindo envios duplicados.
-- [ ] Registrar estados de envio e entrega conforme os retornos do provedor, com tentativas controladas e tratamento de falhas.
+- [x] Respeitar horários, limites, cancelamentos e reagendamentos, impedindo envios duplicados.
+- [x] Registrar estados de envio e entrega conforme os retornos do provedor, com tentativas controladas e tratamento de falhas.
 - [ ] Validar primeiro em modo de teste com destinatários autorizados e documentar configuração e custos antes da ativação em produção.
+
+### 26.1. Complemento imediato: conversas por WhatsApp com conexão por QR Code
+
+Implementação local com adaptador opcional Baileys 7.0.0-rc14, baseado em WhatsApp Web e não oficial. Sessão cifrada, conversas, respostas manuais, controle de acesso, revogação, reconexão e interface validados com adaptador/HTTP simulados. Nenhuma conta foi conectada. Aceite com conta de teste e hospedagem permanecem pendentes; ver [configuração](CONFIGURACAO-1.4.0.md).
+
+Prioridade solicitada: implementar este complemento na próxima etapa, para o volume inicial baixo de mensagens, mantendo a integração oficial prevista na seção 26 como caminho futuro. A leitura do QR Code deve conectar a conta usada no atendimento e permitir conversar diretamente no painel; não se trata apenas de gerar um link para abrir o WhatsApp.
+
+- [x] Criar configuração para ativar ou desativar o atendimento por WhatsApp conectado por QR Code, com gerenciamento da conexão restrito a administradores.
+- [x] Exibir o QR Code para leitura pelo celular, atualizar códigos expirados e mostrar estados de conexão: aguardando leitura, conectado, desconectado e reconectando.
+- [x] Permitir desconectar e revogar a sessão; guardar dados de autenticação de forma protegida no servidor, sem expô-los no frontend, logs ou pacote de distribuição.
+- [x] Criar uma tela de conversas com lista de contatos, mensagens recebidas e enviadas, horários e indicação de mensagens não lidas.
+- [x] Permitir receber mensagens e enviar respostas de texto pelo painel, associando a conversa ao interessado pelo telefone normalizado, com opção de vinculação manual quando houver ambiguidade.
+- [x] Registrar o usuário da equipe responsável por cada resposta e permitir atribuir ou transferir o atendimento, respeitando as permissões de acesso às conversas.
+- [x] Preservar o histórico após reiniciar a aplicação e impedir duplicação de mensagens recebidas ou enviadas. Exibir estados confirmados pela integração e não reenviar automaticamente mensagens cujo resultado seja incerto.
+- [x] Oferecer atualização das conversas sem recarregar a página, reconexão controlada e mensagens claras quando o serviço estiver indisponível.
+- [x] Começar com atendimento manual de baixo volume; respeitar consentimentos, recusas de contato e limites configurados, sem disparos em massa. Notificações automáticas continuam seguindo as regras da seção 26.
+- [x] Avaliar e documentar a tecnologia de conexão antes da implementação, verificando se é oficial ou baseada em automação do WhatsApp Web, suas limitações, requisitos de hospedagem e riscos de desconexão ou restrição da conta. Não apresentar conexão por QR Code como garantia de integração oficial.
+- [x] Isolar a integração em um adaptador para permitir futura troca pelo provedor oficial sem perder os vínculos e o histórico de atendimento.
+- [ ] Validar conexão, expiração do QR Code, recebimento, resposta, reinicialização, revogação, reconexão, duplicação e permissões usando conta de teste e destinatários autorizados.
+- [ ] Documentar a instalação e conferir se a hospedagem suporta o processo persistente e, quando necessário, navegador e armazenamento de sessão; definir serviço separado caso o ambiente atual não suporte esses requisitos.
 
 ## 27. Painel de desempenho
 
-- [ ] Medir consultas a imóveis e contatos recebidos por imóvel, definindo tratamento de visitas repetidas, equipe e tráfego automatizado.
-- [ ] Exibir visitas agendadas e realizadas e conversão de interessados em vendas, com critérios explícitos para cada indicador.
-- [ ] Oferecer filtros por período, imóvel e responsável, conforme as permissões do usuário.
-- [ ] Permitir comparação entre períodos e exportação dos resultados, protegendo dados pessoais e comissões.
-- [ ] Mostrar ausência de dados sem inventar métricas e validar os cálculos com registros conhecidos.
+Cálculos com dados conhecidos, filtros, período anterior e CSV validados. Consultas dependem de ANALYTICS_HASH_KEY, excluem equipe/robôs conhecidos e não são reconstruídas retroativamente. Venda exige registro explícito.
+
+- [x] Medir consultas a imóveis e contatos recebidos por imóvel, definindo tratamento de visitas repetidas, equipe e tráfego automatizado.
+- [x] Exibir visitas agendadas e realizadas e conversão de interessados em vendas, com critérios explícitos para cada indicador.
+- [x] Oferecer filtros por período, imóvel e responsável, conforme as permissões do usuário.
+- [x] Permitir comparação entre períodos e exportação dos resultados, protegendo dados pessoais e comissões.
+- [x] Mostrar ausência de dados sem inventar métricas e validar os cálculos com registros conhecidos.
 
 ## 28. Verificação automática de backups
 
-- [ ] Programar backups criptografados e verificações periódicas de restauração em banco e armazenamento isolados da produção.
-- [ ] Conferir integridade dos registros e das fotos e registrar data, duração e resultado da última verificação.
-- [ ] Exibir ao administrador o último backup criado e o último backup cuja restauração foi validada.
-- [ ] Alertar sobre falha, atraso ou ausência de backup válido, utilizando os canais de notificação configurados.
-- [ ] Definir retenção, espaço disponível e recuperação operacional, preservando as chaves de criptografia fora dos arquivos de backup.
-- [ ] Garantir que testes de restauração nunca sobrescrevam dados de produção e validar recuperação completa antes de considerar o backup utilizável.
+Rotina periódica implementada e desativada por padrão. Backup e restauração completos em SQLite isolado, integridade, retenção, falhas e alertas validados. MySQL, armazenamento da hospedagem, ativação do agendamento e teste real de alertas aguardam validação/autorização.
+
+- [x] Programar backups criptografados e verificações periódicas de restauração em banco e armazenamento isolados da produção.
+- [x] Conferir integridade dos registros e das fotos e registrar data, duração e resultado da última verificação.
+- [x] Exibir ao administrador o último backup criado e o último backup cuja restauração foi validada.
+- [x] Alertar sobre falha, atraso ou ausência de backup válido, utilizando os canais de notificação configurados.
+- [x] Definir retenção, espaço disponível e recuperação operacional, preservando as chaves de criptografia fora dos arquivos de backup.
+- [x] Garantir que testes de restauração nunca sobrescrevam dados de produção e validar recuperação completa antes de considerar o backup utilizável.
 
 ### Ordem sugerida para as próximas entregas
 
-Concluir a validação em MySQL e a publicação dos itens já implementados. Depois, priorizar edição em tela inteira, acessibilidade e recuperação de senha; seguir com histórico de imóveis, avisos de cadastro incompleto e organização de contatos. Implementar WhatsApp após configurar o provedor e os consentimentos, e completar o painel de desempenho e a verificação automática de backups. Todos os itens das seções 20 a 28 estão pendentes de implementação.
+Próxima etapa: liberar ambiente MySQL de teste, conferir leitor de tela/aparelhos físicos e hospedagem, configurar provedores e autorizar destinatários e conta de teste. Somente depois validar recebimento/conexão/envio reais e autorizar ativação/publicação. Consulte [a entrega](ENTREGA-1.4.0.md) e [a configuração](CONFIGURACAO-1.4.0.md). As implementações locais das seções 20 a 28 e do complemento 26.1 constam da entrega 1.4.0. Permanecem pendentes as validações externas expressamente indicadas e a publicação; nenhum envio ou conexão real foi realizado.

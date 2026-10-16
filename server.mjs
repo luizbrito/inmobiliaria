@@ -1,3 +1,8 @@
+import {createWhatsAppQR} from './core/whatsapp-qr.mjs';
+import {runBackupVerification,backupStatus,enqueueBackupAlert} from './core/backup-verification.mjs';
+import {runWhatsAppNotifications,validWhatsAppSignature,receiveWhatsAppWebhook,cleanWhatsAppEvents} from './core/whatsapp.mjs';
+import {requestPasswordReset,confirmPasswordReset} from './core/password-reset.mjs';
+import {recordPropertyView,cleanPerformanceViews} from './core/performance.mjs';
 import express from 'express';
 import {enqueueNotifications} from './core/notifications.mjs';
 import {runEmailNotifications} from './core/email-notifications.mjs';
@@ -51,11 +56,12 @@ if(!await store.get('settings','whatsapp-default-v1')){
  if(settings&&!settings.whatsapp)await store.set('settings','public',{...settings,whatsapp:defaultSettings.whatsapp});
  await store.set('settings','whatsapp-default-v1',{done:true});
 }
+const whatsappQR=createWhatsAppQR(store);await whatsappQR.resume();
 const app=express();app.disable('x-powered-by');app.set('trust proxy',1);
 const sessionsCookie='confianza_session',secure=origin.startsWith('https://'),cookieOptions={httpOnly:true,secure,sameSite:'strict',path:'/',maxAge:8*60*60*1000};
 const tokenHash=t=>createHash('sha256').update(t).digest('hex');
 function cookieToken(req){return(req.headers.get('cookie')||'').split(';').map(x=>x.trim()).find(x=>x.startsWith(sessionsCookie+'='))?.slice(sessionsCookie.length+1);}
-async function getUser(req){const token=cookieToken(req);if(!token||! /^[a-f0-9]{64}$/.test(token))return null;const s=await store.get('sessions',tokenHash(token));if(!s||s.expires<Date.now()||s.pending)return null;const u=await store.get('users',s.userId);return u?.active&&(s.version??0)===(u.authVersion??0)&&(!requiresMFA(u)||s.mfa&&u.mfaSecret)?{id:u.id,name:u.name,email:u.email,role:u.role,commissionView:u.commissionView===true,commissionEdit:u.commissionEdit===true,language:u.language||'pt'}:null;}
+async function getUser(req){const token=cookieToken(req);if(!token||! /^[a-f0-9]{64}$/.test(token))return null;const s=await store.get('sessions',tokenHash(token));if(!s||s.expires<Date.now()||s.pending)return null;const u=await store.get('users',s.userId);return u?.active&&(s.version??0)===(u.authVersion??0)&&(!requiresMFA(u)||s.mfa&&u.mfaSecret)?{id:u.id,name:u.name,email:u.email,role:u.role,commissionView:u.commissionView===true,commissionEdit:u.commissionEdit===true,language:u.language||'pt',accessibility:u.accessibility||{scale:1,simplified:false}}:null;}
 async function audit(req,action,status,userId=null){const id=crypto.randomUUID();await store.set('audit',id,{id,date:new Date().toISOString(),action,status,userId,ip:req.ip});}
 let mfaQueue=Promise.resolve();
 async function serialMfa(fn){const prior=mfaQueue;let release;mfaQueue=new Promise(r=>release=r);await prior;try{return await fn();}finally{release();}}
@@ -65,13 +71,32 @@ const limits=new Map();function rate(key,max,ms){const now=Date.now();let x=limi
 setInterval(()=>{const now=Date.now();for(const [k,v] of limits)if(v.expires<now)limits.delete(k);},60000).unref();
 setInterval(async()=>{try{for(const s of await store.all('sessions'))if(s.expires<Date.now())await store.remove('sessions',s.id);}catch{}},3600000).unref();
 let notificationTickRunning=false;
-setInterval(async()=>{if(notificationTickRunning)return;notificationTickRunning=true;try{await enqueueNotifications(store);await runEmailNotifications(store);}catch{console.error('Falha ao preparar fila de notificações.');}finally{notificationTickRunning=false;}},60000).unref();
+setInterval(async()=>{if(notificationTickRunning)return;notificationTickRunning=true;try{await enqueueNotifications(store);await runEmailNotifications(store);await runWhatsAppNotifications(store);}catch{console.error('Falha ao preparar fila de notificações.');}finally{notificationTickRunning=false;}},60000).unref();
+setInterval(async()=>{try{await cleanPerformanceViews(store);await cleanWhatsAppEvents(store);}catch{console.error('Falha na retenção de dados operacionais.');}},86400000).unref();
+let backupTickRunning=false;setInterval(async()=>{if(backupTickRunning||process.env.BACKUP_AUTOMATION_ENABLED!=='true')return;backupTickRunning=true;try{await runBackupVerification();await enqueueBackupAlert(store,await backupStatus());}catch{console.error('Falha na verificação automática de backups.');}finally{backupTickRunning=false;}},60000).unref();
 app.use((req,res,next)=>{res.set({'X-Content-Type-Options':'nosniff','Referrer-Policy':'strict-origin-when-cross-origin','X-Frame-Options':'SAMEORIGIN','Permissions-Policy':'camera=(), microphone=(), geolocation=()','Content-Security-Policy':"default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' https: data: blob:; connect-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'self'; form-action 'self'"});if(secure)res.set('Strict-Transport-Security','max-age=31536000');next();});
 app.use('/api',(req,res,next)=>{res.set('Cache-Control','no-store');next();},express.raw({type:()=>true,limit:'4mb'}),async(req,res)=>{try{
  const method=req.method,pathname='/api'+req.url.split('?')[0];
+ if(pathname==='/api/whatsapp/webhook'){
+  if(method==='GET'){if(process.env.WHATSAPP_VERIFY_TOKEN&&req.query['hub.mode']==='subscribe'&&typeof req.query['hub.verify_token']==='string'&&tokenHash(req.query['hub.verify_token'])===tokenHash(process.env.WHATSAPP_VERIFY_TOKEN)&&typeof req.query['hub.challenge']==='string'&&req.query['hub.challenge'].length<200)return res.type('text/plain').send(req.query['hub.challenge']);return res.sendStatus(403);}
+  if(method==='POST'){if(!validWhatsAppSignature(req.body,req.headers['x-hub-signature-256'],process.env.WHATSAPP_APP_SECRET))return res.sendStatus(403);try{await receiveWhatsAppWebhook(store,JSON.parse(req.body.toString('utf8')));return res.json({ok:true});}catch{return res.sendStatus(503);}}
+  return res.sendStatus(405);
+ }
  if(!['GET','HEAD'].includes(method)&&req.headers.origin!==origin){await audit(req,'origin.denied',403);return res.status(403).json({error:'Origem inválida.'});}
  const url=new URL('/api'+req.url,origin);const request=new Request(url,{method,headers:req.headers,...(!['GET','HEAD'].includes(method)?{body:req.body?.length?req.body:undefined}: {})});
  const user=await getUser(request);
+ if(pathname.startsWith('/api/whatsapp-qr/')){const response=await whatsappQR.api(request,user,pathname.split('/').filter(Boolean));if(method!=='GET'&&pathname.split('/')[3]!=='read')await audit(req,'whatsapp-qr.'+pathname.split('/')[3],response.status,user?.id);return res.status(response.status).json(await response.json());}
+ if(pathname==='/api/team/backups'&&method==='GET'){if(!user)return res.status(401).json({error:'Acesso restrito.'});if(user.role!=='admin')return res.status(403).json({error:'Acesso restrito.'});return res.json(await backupStatus());}
+ if(pathname==='/api/password-reset/request'&&method==='POST'){
+  const x=await request.json(),email=String(x.email||'').trim().toLowerCase();
+  if(!rate('reset-ip:'+req.ip,10,3600000)||!rate('reset-email:'+tokenHash(email),3,3600000))return res.status(429).json({error:'Muitas tentativas. Tente novamente mais tarde.'});
+  setImmediate(()=>requestPasswordReset(store,email,{record:(action,id)=>audit(req,action,200,id)}).catch(()=>audit(req,'password.reset.unavailable',503).catch(()=>{})));
+  return res.status(202).json({ok:true});
+ }
+ if(pathname==='/api/password-reset/confirm'&&method==='POST'){
+  if(!rate('reset-confirm:'+req.ip,10,900000))return res.status(429).json({error:'Muitas tentativas. Tente novamente mais tarde.'});
+  try{return res.json(await confirmPasswordReset(store,await request.json(),{hashPassword,record:(action,id)=>audit(req,action,200,id)}));}catch(error){return res.status(400).json({error:error.message});}
+ }
  if(pathname==='/api/login'&&method==='POST'){
   if(!rate('login:'+req.ip,10,15*60*1000)){await audit(req,'login.throttled',429);return res.status(429).json({error:'Muitas tentativas. Tente novamente mais tarde.'});}
   const x=await request.json();const u=(await store.all('users')).find(u=>u.email===String(x.email).toLowerCase());
@@ -101,8 +126,8 @@ app.use('/api',(req,res,next)=>{res.set('Cache-Control','no-store');next();},exp
  }
  if(pathname==='/api/staff'&&method==='GET'){if(!user)return res.status(401).json({error:'Acesso restrito.'});if(!['admin','editor','agent'].includes(user.role))return res.status(403).json({error:'Acesso restrito.'});return res.json((await store.all('users')).filter(u=>u.active).map(u=>({id:u.id,name:u.name,role:u.role})));}
  if(pathname==='/api/preferences'&&method==='PUT'){
-  if(!user)return res.status(401).json({error:'Acesso restrito.'});const x=await request.json();if(!['pt','es','en','it','de'].includes(x.language))return res.status(400).json({error:'Idioma inválido.'});
-  const old=await store.get('users',user.id),next={...old,language:x.language};if(!await store.atomicCompareSet([{table:'users',id:user.id,old,next}]))return res.status(409).json({error:'Atualize e tente novamente.'});return res.json({language:x.language});
+  if(!user)return res.status(401).json({error:'Acesso restrito.'});const x=await request.json();if(x.language!==undefined&&!['pt','es','en','it','de'].includes(x.language))return res.status(400).json({error:'Idioma inválido.'});
+  if(x.accessibility&&(typeof x.accessibility.simplified!=='boolean'||![1,1.2,1.4].includes(x.accessibility.scale)))return res.status(400).json({error:'Preferência inválida.'});const old=await store.get('users',user.id),next={...old,...(x.language?{language:x.language}:{}),...(x.accessibility?{accessibility:x.accessibility}:{})};if(!await store.atomicCompareSet([{table:'users',id:user.id,old,next}]))return res.status(409).json({error:'Atualize e tente novamente.'});return res.json({language:next.language||'pt',accessibility:next.accessibility||{scale:1,simplified:false}});
  }
  if(pathname.startsWith('/api/users')){
   if(!user)return res.status(401).json({error:'Acesso restrito.'});
@@ -118,7 +143,7 @@ app.use('/api',(req,res,next)=>{res.set('Cache-Control','no-store');next();},exp
    if(id===user.id&&(!x.active||x.role!=='admin'))return res.status(400).json({error:'Você não pode desativar ou rebaixar seu próprio acesso.'});
    if(x.mfaRequired!==undefined&&typeof x.mfaRequired!=='boolean')return res.status(400).json({error:'mfaRequired deve ser booleano.'});
    const mfaRequired=x.mfaRequired??(typeof old?.mfaRequired==='boolean'?old.mfaRequired:x.role==='admin'),mfaChanged=!!old&&mfaRequired!==requiresMFA(old);
-   const u={id,name:x.name,email:x.email.toLowerCase(),role:x.role,mfaRequired,publicProfile:old?.publicProfile,commissionView:!!x.commissionView||!!x.commissionEdit,commissionEdit:!!x.commissionEdit,language:x.language||old?.language||'pt',active:!!x.active,passwordHash:x.password?await hashPassword(x.password):old.passwordHash,mfaSecret:old?.mfaSecret,mfaLastStep:old?.mfaLastStep,authVersion:(old?.authVersion??0)+(x.password||old?.role!==x.role||!x.active||mfaChanged?1:0),createdAt:old?.createdAt||new Date().toISOString()};await audit(req,'users.'+method.toLowerCase()+':'+id,200,user.id);if(old){const updated=await run(`UPDATE users SET payload=? WHERE id=? AND ${dbType==='mysql'?'BINARY payload=BINARY ?':'payload=?'}`,[JSON.stringify(u),id,JSON.stringify(old)]);if((dbType==='sqlite'?updated.changes:updated[0].affectedRows)!==1)return res.status(409).json({error:'Usuário alterado por outra operação. Atualize e tente novamente.'});}else await store.set('users',id,u);if(mfaChanged)await audit(req,'users.mfa.'+(mfaRequired?'enabled:':'disabled:')+id,200,user.id);if(x.password||old?.role!==u.role||!u.active||mfaChanged)for(const s of await store.all('sessions'))if(s.userId===id)await store.remove('sessions',s.id);return res.json({ok:true,id,reauthenticate:id===user.id&&(!!x.password||mfaChanged)});
+   const u={id,name:x.name,email:x.email.toLowerCase(),role:x.role,mfaRequired,accessibility:old?.accessibility,publicProfile:old?.publicProfile,commissionView:!!x.commissionView||!!x.commissionEdit,commissionEdit:!!x.commissionEdit,language:x.language||old?.language||'pt',active:!!x.active,passwordHash:x.password?await hashPassword(x.password):old.passwordHash,mfaSecret:old?.mfaSecret,mfaLastStep:old?.mfaLastStep,authVersion:(old?.authVersion??0)+(x.password||old?.role!==x.role||!x.active||mfaChanged?1:0),createdAt:old?.createdAt||new Date().toISOString()};await audit(req,'users.'+method.toLowerCase()+':'+id,200,user.id);if(old){const updated=await run(`UPDATE users SET payload=? WHERE id=? AND ${dbType==='mysql'?'BINARY payload=BINARY ?':'payload=?'}`,[JSON.stringify(u),id,JSON.stringify(old)]);if((dbType==='sqlite'?updated.changes:updated[0].affectedRows)!==1)return res.status(409).json({error:'Usuário alterado por outra operação. Atualize e tente novamente.'});}else await store.set('users',id,u);if(mfaChanged)await audit(req,'users.mfa.'+(mfaRequired?'enabled:':'disabled:')+id,200,user.id);if(x.password||old?.role!==u.role||!u.active||mfaChanged)for(const s of await store.all('sessions'))if(s.userId===id)await store.remove('sessions',s.id);return res.json({ok:true,id,reauthenticate:id===user.id&&(!!x.password||mfaChanged)});
   }
  }
  if(pathname==='/api/leads'&&method==='POST'&&!rate('lead:'+req.ip,20,60*60*1000))return res.status(429).json({error:'Muitas solicitações. Tente novamente mais tarde.'});
@@ -130,6 +155,7 @@ const escapeHtml=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<
 app.get('/imovel/:id',async(req,res,next)=>{try{
  const property=await store.get('properties',req.params.id);
  if(!property||property.status!=='Publicado')return res.status(404).type('html').send('<!doctype html><html lang="pt-BR"><title>Imóvel não encontrado</title><h1>Imóvel não encontrado</h1><a href="/">Ver catálogo</a></html>');
+ await recordPropertyView(store,property.id,{user:await getUser(new Request(origin+req.originalUrl,{headers:req.headers})),userAgent:req.headers['user-agent']||'',ip:req.ip,key:process.env.ANALYTICS_HASH_KEY||''});
  const canonical=origin+'/imovel/'+encodeURIComponent(property.id),title=property.title+' | Confianza',description=String(property.description||property.location||'').slice(0,300),image=new URL(property.image?.startsWith('https://')||property.image?.startsWith('/api/media/')?property.image:'/portal/assets/'+(property.image||'house.jpg'),origin).href;
  let html=await readFile(path.join(assetRoot,'portal/index.html'),'utf8');
  html=html.replace(/<title>.*?<\/title>/,`<title>${escapeHtml(title)}</title>`).replace(/<meta name="description"[^>]*>/,`<meta name="description" content="${escapeHtml(description)}">`);
@@ -139,6 +165,6 @@ app.get('/imovel/:id',async(req,res,next)=>{try{
  }catch(error){next(error);}});
 app.get('/sitemap.xml',async(req,res,next)=>{try{const properties=(await store.all('properties')).filter(x=>x.status==='Publicado');res.type('application/xml').send(`<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>${escapeHtml(origin+'/')}</loc></url>${properties.map(p=>`<url><loc>${escapeHtml(origin+'/imovel/'+encodeURIComponent(p.id))}</loc></url>`).join('')}</urlset>`);}catch(error){next(error);}});
 app.get('/robots.txt',(req,res)=>res.type('text/plain').send(`User-agent: *\nDisallow: /admin\nDisallow: /api/\nSitemap: ${origin}/sitemap.xml\n`));
-app.get(['/', '/buscar','/favoritos','/comparar','/sobre','/privacidade','/admin','/admin/:section'],(req,res)=>{if(req.path.startsWith('/admin'))res.set({'Cache-Control':'no-store','X-Robots-Tag':'noindex'});res.sendFile(path.join(assetRoot,'portal/index.html'));});
+app.get(['/', '/buscar','/favoritos','/comparar','/sobre','/privacidade','/admin','/admin/:section','/admin/recuperar','/admin/imoveis/novo','/admin/imoveis/:id/editar'],(req,res)=>{if(req.path.startsWith('/admin'))res.set({'Cache-Control':'no-store','X-Robots-Tag':'noindex'});res.sendFile(path.join(assetRoot,'portal/index.html'));});
 app.use((err,req,res,next)=>res.status(err.status||500).json({error:err.type==='entity.too.large'?'Arquivo muito grande.':'Falha ao processar o pedido.'}));
 app.listen(port,process.env.LISTEN_HOST||'0.0.0.0',()=>console.log(`Confianza pronta na porta ${port}; banco ${dbType}.`));
