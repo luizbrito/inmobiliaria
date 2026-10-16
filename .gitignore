@@ -6,3 +6,7 @@ releases/
 __pycache__/
 output/
 tmp/
+
+reports/
+test-results/
+playwright-report/

@@ -4,4 +4,9 @@ export function organizePropertyForm(form,tr){
  for(const node of [...grid.children]){const name=node.querySelector('[name]')?.name||node.getAttribute('name');let index=groups.findIndex(([,names])=>names.includes(name));if(node.id==='property-photos')index=3;if(node.querySelector('#draft-lang'))index=2;if(index<0)index=5;sections[index].append(node);}
  grid.replaceWith(...sections);
 }
-export function installDirtyGuard(form,{message,changed=()=>{}}){let dirty=false;const mark=()=>{dirty=true;changed();},before=e=>{if(dirty){e.preventDefault();e.returnValue='';}};form.addEventListener('input',mark);form.addEventListener('change',mark);form.addEventListener('click',e=>{if(['main','before','after','remove','undo','retry'].includes(e.target.closest('[data-photo]')?.dataset.photo))mark();});window.addEventListener('beforeunload',before);return {get dirty(){return dirty;},clean(){dirty=false;},leave(){if(dirty&&!confirm(message()))return false;dirty=false;return true;},dispose(){window.removeEventListener('beforeunload',before);}};}
+export function installDirtyGuard(form,{message,changed=()=>{}}){
+ let dirty=false;const mark=()=>{dirty=true;changed();},before=e=>{if(dirty){e.preventDefault();e.returnValue='';}};
+ const fieldChange=e=>{if(e.target?.id!=='photo-files')mark();};
+ form.addEventListener('input',fieldChange);form.addEventListener('change',fieldChange);form.addEventListener('photo-editor-change',mark);window.addEventListener('beforeunload',before);
+ return {get dirty(){return dirty;},clean(){dirty=false;},leave(){if(dirty&&!confirm(message()))return false;dirty=false;return true;},dispose(){window.removeEventListener('beforeunload',before);form.removeEventListener('input',fieldChange);form.removeEventListener('change',fieldChange);form.removeEventListener('photo-editor-change',mark);}};
+}

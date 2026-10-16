@@ -500,3 +500,126 @@ Rotina periódica implementada e desativada por padrão. Backup e restauração 
 ### Ordem sugerida para as próximas entregas
 
 Próxima etapa: liberar ambiente MySQL de teste, conferir leitor de tela/aparelhos físicos e hospedagem, configurar provedores e autorizar destinatários e conta de teste. Somente depois validar recebimento/conexão/envio reais e autorizar ativação/publicação. Consulte [a entrega](ENTREGA-1.4.0.md) e [a configuração](CONFIGURACAO-1.4.0.md). As implementações locais das seções 20 a 28 e do complemento 26.1 constam da entrega 1.4.0. Permanecem pendentes as validações externas expressamente indicadas e a publicação; nenhum envio ou conexão real foi realizado.
+
+## 29. Correções identificadas na revisão técnica da versão 1.4.0
+
+A análise reproduziu as falhas em cenários isolados e a versão local 1.4.1 implementa as correções abaixo. Os testes novos demonstraram as regressões antes das correções e passaram depois. Nenhum provedor real foi conectado.
+
+### 29.1. Alta prioridade: isolar rascunhos por conversa do WhatsApp
+
+**Arquivos:** `public/portal/whatsapp-qr-ui.js`; teste de navegador em `scripts/verify-team-ui.mjs` ou futura suíte E2E dedicada.
+
+**Reprodução e causa:** selecionar A, escrever uma resposta sem enviar e selecionar B. A ação `qr-select` troca `selected` e chama `conversation(true)`. A função lê `oldText` do textarea ainda pertencente a A e o coloca no formulário de B. O envio usa o novo `selected`, permitindo enviar o rascunho ao destinatário errado.
+
+- [x] Vincular rascunhos explicitamente ao identificador da conversa. Ao trocar, salvar o texto de A em memória e carregar apenas o de B, ou limpar com confirmação de descarte. Nunca transferir texto entre destinatários.
+- [x] Capturar o identificador solicitado antes de cada chamada assíncrona e ignorar respostas atrasadas se outra conversa tiver sido selecionada. Aplicar o mesmo cuidado ao polling e à paginação.
+- [x] Vincular o formulário de envio e sua chave de idempotência à conversa e à tentativa correspondente. Um retorno atrasado de A não pode limpar o texto, o identificador de tentativa ou os erros de B.
+- [x] Preservar rascunhos durante atualização da mesma conversa; limpar o de uma mensagem somente após o resultado previsto pelo fluxo de envio. Em resultado incerto, não reenviar automaticamente.
+- [x] Ao sair da conta ou perder permissão de acesso, descartar os rascunhos protegidos. Não gravar conteúdo de conversas em armazenamento compartilhado entre usuários.
+
+**Aceite automatizado:** A → B sem texto em B; B → A restaura somente A caso a opção de preservar seja adotada; rascunhos diferentes em A/B; polling sem perda; respostas HTTP fora de ordem; troca durante envio; erro de rede; resultado incerto; revogação de acesso; logout e entrada com outro usuário. Interceptar a requisição de envio e conferir `threadId`, texto e `clientId`, garantindo zero envio para o destinatário errado.
+
+### 29.2. Prioridade média: registrar confirmação de falha do provedor
+
+**Arquivos:** `core/whatsapp-qr.mjs`, função `receipt`; `core/whatsapp-qr-adapter.mjs`; `whatsapp-qr.test.mjs` e interface de conversas.
+
+**Reprodução e causa:** criar mensagem `submitted` e chamar `receipt({providerId, state:'failed'})`. Ela permanece `submitted`: a comparação numérica atribui o mesmo nível a `failed` e `submitted` e descarta a transição. A classificação linear mistura progresso de entrega com falha.
+
+- [x] Definir uma tabela explícita de transições, separando falha confirmada de resultado incerto e de progresso de entrega.
+- [x] Aceitar falha confirmada para mensagens ainda sem confirmação de entrega; preservar evidências de entrega/leitura diante de eventos antigos ou contraditórios, conforme o contrato documentado do adaptador.
+- [x] Tornar eventos repetidos idempotentes e preservar identidade da mensagem e autor. Usar comparação atômica com retentativas limitadas para não perder atualizações concorrentes.
+- [x] Documentar o tratamento de recibos que chegam antes da persistência do resultado de envio e de mensagens `sending` interrompidas por reinício. Não transformar ausência de confirmação em sucesso nem repetir envio incerto.
+- [x] Mostrar falha confirmada no painel sem acionar reenvio automático.
+
+**Aceite automatizado:** `submitted → failed`; `sending → failed`; `uncertain → failed`; `submitted → sent → delivered → read`; duplicação; eventos atrasados; identificador desconhecido; corrida entre recibo e retorno do envio; leitura seguida de falha antiga; reinício durante envio. Conferir o estado persistido e o texto exibido, com uma única chamada ao transporte por tentativa.
+
+### 29.3. Prioridade média: detectar reordenação de fotos como alteração não salva
+
+**Arquivos:** `public/portal/property-page.js` (`installDirtyGuard`), `public/portal/photo-editor.js`, `public/portal/app.js`; verificadores de fotos e editor.
+
+**Reprodução e causa:** abrir imóvel, reordenar apenas por arrastar e sair. O drop altera o modelo e renderiza, emitindo `photo-editor-update`; a proteção escuta `input`, `change` e determinados cliques, sem acompanhar essa mutação. A navegação prossegue sem aviso.
+
+- [x] Emitir evento específico para mudanças reais do modelo de fotos, ou incluir metadados de mutação no evento existente. Não marcar como alteração a renderização inicial, progresso de upload ou abertura de prévia.
+- [x] Integrar o evento à proteção de saída, com remoção dos listeners ao desmontar o editor. Cobrir ordenação por arrastar, botões e demais formas suportadas.
+- [x] Manter o aviso em Voltar, Cancelar, menu, recarregar e fechar a aba; após salvar com sucesso, limpar o estado. Falha de gravação deve manter a alteração protegida.
+- [x] Definir e testar o comportamento após desfazer todas as alterações, sem descartar silenciosamente modificações ainda existentes em outros campos.
+
+**Aceite automatizado:** abrir sem alterar não pede confirmação; apenas reordenar pede; cancelar a saída mantém a ordem local; confirmar descarta; salvar e reabrir preserva a ordem; erro 409 preserva o formulário e a proteção; prévia e progresso não produzem falsos positivos. Para `beforeunload`, verificar o evento no teste unitário e o comportamento permitido pelo navegador no E2E.
+
+## 30. Identidade visual do WhatsApp no menu
+
+- [x] Substituir o envelope do item Conversas por WhatsApp pelo símbolo do WhatsApp em SVG local, sem dependência de imagens remotas.
+- [x] Preservar tamanho, alinhamento e cores herdadas dos estados ativo e inativo do menu, além do nome acessível existente. O SVG decorativo usa `aria-hidden="true"`.
+- [x] Atualizar a referência de cache do arquivo principal para disponibilizar a mudança após a publicação.
+- [x] Incluir na regressão visual os estados ativo/inativo, os cinco idiomas, fonte ampliada e viewport móvel.
+
+Alteração local; não equivale à publicação nem à correção das falhas da seção 29. Validação desta alteração: build com 39 arquivos JavaScript verificados, detector visual sem apontamentos e cenários existentes de `scripts/verify-team-ui.mjs` concluídos sem erros. A captura desktop com fonte ampliada foi inspecionada e mostra o novo símbolo no menu. Isso não implementa a matriz futura de regressão visual.
+
+## 31. Automação de testes para todas as funcionalidades e builds futuros
+
+### 31.1. Objetivo, estado atual e organização
+
+Implementação local concluída para a infraestrutura e a matriz simulada. A evidência MySQL depende do Docker e os aceites com provedores, aparelhos e hospedagem continuam externos. Consulte `TESTES-AUTOMATIZADOS.md`.
+
+- [x] Inventariar cada comportamento das seções 1 a 30 e relacioná-lo a caso de teste, arquivo, camada, banco e evidência. Registrar cobertura existente, ausente, simulada e externa separadamente.
+- [x] Organizar testes em unidades puras, integração HTTP/persistência, contratos de adaptadores, E2E de navegador, regressão visual e verificações operacionais. Evitar testes que apenas repetem a implementação sem conferir comportamento observável.
+- [x] Instalar e fixar ferramentas de navegador como dependências de desenvolvimento reproduzíveis. Todos os scripts usam o Playwright do manifesto, sem `data/qa-tools`.
+- [x] Criar comandos dedicados `test:unit`, `test:integration`, `test:contracts`, `test:e2e`, `test:a11y`, `test:visual` e `test:release`, preservando `npm test` e `test:mysql`.
+- [x] Usar controles estáveis e seletores por função/nome acessível nos E2E adicionados.
+
+### 31.2. Infraestrutura determinística e isolamento
+
+- [x] Gerar usuários de cada perfil, contas com/sem MFA, imóveis rascunhos/publicados/vendidos, fotos, contatos, visitas, comissões e conversas em fixtures sem dados reais. Cada execução usa banco, diretório temporário e portas próprios.
+- [x] Controlar relógio, fuso, geradores de identificadores e respostas externas pelos pontos de injeção; cobrir virada de dia, expiração e horário de verão onde aplicável, sem depender da hora da execução.
+- [x] Criar MySQL descartável em CI, aguardar saúde, executar a matriz funcional persistida em schemas isolados e remover somente recursos identificados como pertencentes ao teste. A configuração foi criada; a execução local desta entrega segue pendente porque o Docker não iniciou.
+- [x] Simular SMTP, Meta e adaptador QR, com bloqueio de saída de rede não autorizada. Testes comuns não abrem conexão WhatsApp, enviam mensagens ou consultam produção.
+- [x] Testar latência, timeout, interrupção, duplicação, eventos fora de ordem, concorrência e reinício com fixtures de falha controlada.
+- [x] Fazer limpeza em `finally`, validar o caminho antes de exclusão recursiva e conferir que nenhum teste modifica o banco, fotos ou variáveis reais do projeto.
+
+### 31.3. Matriz funcional mínima
+
+Cada linha abaixo representa cenários a implementar ou conferir na cobertura existente. Validar sucesso, entrada inválida, ausência de permissão, falha de persistência e concorrência quando pertinentes.
+
+Matriz local implementada e relacionada aos arquivos/evidências em `TESTES-AUTOMATIZADOS.md`. A execução em SQLite e com transportes simulados não substitui MySQL, provedores, aparelhos ou leitor de tela reais.
+
+| Área / referência | Cenários obrigatórios | Camadas e evidências |
+| --- | --- | --- |
+| Catálogo e navegação pública | Busca, filtros combinados, ordenação, favoritos, comparação, imóveis relacionados, preço sob consulta, valores zero, anúncio indisponível e acesso direto por URL. Rascunhos não aparecem em API, HTML, metadados ou sitemap públicos. | Unidade, API, E2E; respostas e navegação verificadas. |
+| Identidade, idiomas e conteúdo | Cinco idiomas, fallback de conteúdo sem tradução, rótulos, números, moedas, unidades, datas e parágrafos; escape de conteúdo malicioso e ausência de informações internas na página pública. | Unidade e E2E parametrizados por idioma; acessibilidade e capturas representativas. |
+| Apresentações, PDF e compartilhamento — 3 a 9 e 12 | Capa, marca em todas as páginas, galeria e principal sem duplicação, ficha técnica, seleção de fotos, perfil público do corretor, QR decodificado com URL correta, múltiplas páginas, fotos verticais e ausência de fotos. Download, impressão e compartilhamento disponível/indisponível/cancelado. | Unidade, contratos, E2E e inspeção/renderização de artefato quando aplicável. Não confundir abrir compartilhamento com entrega ao destinatário. |
+| Login, equipe e permissões — 1 e 19 | Login/logout, cookies, origem/CSRF, limitação de tentativas, sessões expiradas/revogadas, perfis admin/editor/corretor, alteração da própria conta, política individual de MFA, cadastro TOTP, replay, desvio de relógio e desafios pendentes. Conferir proteção no servidor, sem depender do menu. | Segurança, unidade, API e persistência nos dois bancos; segredos ausentes de respostas e logs. |
+| Recuperação de senha — 22 | E-mail conhecido/desconhecido com resposta uniforme, conta inativa, link expirado, adulterado, usado e substituído; falha SMTP; chamadas concorrentes; senha inválida; revogação de sessões e preservação do MFA. | Unidade com transporte falso e integração HTTP; token somente em envio simulado controlado, nunca em logs. |
+| Cadastro e edição em página — 20 e 24 | Novo e edição por URL, retorno com filtros, salvar/cancelar/voltar, seções do formulário, rascunho incompleto, requisitos e recomendações, conflito 409, duplo clique, falha de rede, tradução em edição e proteção de saída. | API e E2E; conferir conteúdo persistido e preservação do formulário em erro. |
+| Fotos — 18 e 29.3 | Prévia, upload válido/inválido/truncado/grande, limite, progresso, cancelamento, falha e retentativa; escolha/remoção da principal, reordenação por mouse/teclado/toque suportado, desfazer, referências legadas, arquivo compartilhado e editor reaberto. | Unidade do modelo, API/upload e E2E; mesma sequência em editor, anúncio, apresentação e backup restaurado. |
+| Histórico — 23 | Autor/data/campos, legado, comparação, retenção, foto preservada, permissão de comissões, recuperação como nova revisão, manutenção de pagamentos atuais e recuperação concorrente. | Unidade, API e backup/restauração; não recuperar dados financeiros por efeito colateral. |
+| Contatos e pendências — 10, 12 e 25 | Consentimento, criação, etapas, responsáveis, retorno, registro manual e origem da interação, busca, filtros, duplicados por telefone/e-mail/aliases, unificação concorrente, conflitos de responsáveis e vínculos preservados com visitas/conversas. | Unidade, API e E2E; origem arquivada, histórico íntegro e lembretes antigos invalidados. |
+| Visitas e agenda — 11 | Solicitação, confirmação do proprietário, antecedência, disponibilidade, duração, bloqueios, intervalo entre visitas, cancelamento, transferência, reagendamento e duas reservas concorrentes do mesmo horário. Conferir fusos e virada de dia. | Unidade do domínio e API nos dois bancos; somente uma reserva conflitante aceita. |
+| Comissões e relatórios — 13 | Percentual/fixo, moedas sem soma indevida, base prevista/realizada, aprovação, pagamentos parciais, limites, arredondamento, histórico e revisão concorrente. Perfis sem permissão não recebem valores nas APIs, versões ou exportações. | Unidade, API e E2E; conferir total e regras financeiras com fixtures conhecidas. |
+| Notificações no navegador e por e-mail — 14 | Preferência, teste autorizado, horários, limite diário, fila idempotente, lease, pausa, eventos cancelados, retentativas, lease expirado e resultado ambíguo. SMTP aceito não significa entregue. | Contratos falsos e integração da fila; zero conexões reais em CI. |
+| WhatsApp oficial — 26 | Payload/modelos por idioma, destinatários autorizados, consentimento/STOP, assinatura do webhook inválida/válida, duplicação, eventos antes da resposta HTTP, recibos fora de ordem, 429, 5xx, timeout e falha definitiva. | Contrato Meta simulado e API; validar estados sem reenviar envio incerto. |
+| WhatsApp QR — 26.1 e 29.1/29.2 | QR restrito ao admin, expiração, conexão, conflito de instância, sessão cifrada, reconexão limitada, logout/revogação, recebimento/echo deduplicado, vínculo ambíguo, transferência, acesso por responsável, consentimento, limite, paginação e persistência após reinício. Incluir isolamento de rascunhos e falhas de recibos da seção 29. | Unidade, contrato do adaptador, API e E2E com HTTP interceptado. Uma chamada ao transporte por tentativa; nenhuma conexão real. |
+| Desempenho — 27 | Deduplicação por imóvel/dia, exclusão de equipe/robôs, coleta desativada, retenção, período anterior, filtros, conversão com venda explícita, contato unificado, dias sem dados, CSV seguro e ausência de dados pessoais/comissões. | Unidade com relógio fixo, API e exportação com valores conhecidos. |
+| Acessibilidade — 21 | Teclado, foco visível e após erros, rótulos, regiões de status, contraste, zoom/fonte 100/120/140%, preferência por conta, modo simplificado, textos longos e celular. Ícone WhatsApp não duplica o nome acessível do botão. | E2E com análise automatizada de acessibilidade e regressão visual; leitor de tela real permanece aceite separado. |
+| Backups e recuperação — 28 | Arquivo cifrado, chave errada, adulteração, destino não vazio, banco isolado, registros/fotos idênticos, exclusão de sessões/tokens/autenticação QR, histórico e conversas preservados, agendamento, espaço, retenção, lock concorrente, falha/timeout/limpeza e alertas. | Integração em processos separados para SQLite/MySQL; comparar origem antes/depois e garantir que restauração nunca a sobrescreve. |
+| Empacotamento e operação — 16 | Instalação limpa, build, início e saúde, variáveis obrigatórias, dependência QR opcional ausente, preflight, cache do frontend, manifesto/lock coerentes, ZIP/SHA-256 e ausência de `.env`, chaves, bancos, dados privados ou ferramentas locais no pacote. | Smoke test isolado do pacote extraído; teste de conteúdo e integridade do artefato. |
+
+### 31.4. Pipeline proposta para CI e builds
+
+- [x] **Em toda alteração:** instalar por lockfile com `npm ci`, executar build, unidade, contratos e integração SQLite.
+- [x] **Em todo PR:** executar integração MySQL e E2E dos fluxos críticos com perfis diferentes, desktop e viewport móvel; conferir as três regressões da seção 29 e acessibilidade automatizada.
+- [x] **Execução periódica:** ampliar navegadores, idiomas, fontes, concorrência, recuperação e falhas, com backup em infraestrutura descartável.
+- [x] **Antes de gerar release:** exigir resultados, validar pacote extraído, iniciar isoladamente, conferir checksum e vincular relatório ao código.
+- [x] Bloquear release diante de dependência indisponível, suíte ignorada ou execução interrompida.
+- [x] Fixar Node, Playwright, Axe e imagem MySQL na CI.
+
+### 31.5. Evidências, cobertura e critérios de conclusão
+
+- [x] Produzir JUnit, cobertura e evidências E2E com capturas/trace apenas em falhas e dados fictícios.
+- [x] Criar baselines visuais por viewport, idioma, fonte e estado, atualizados somente por comando explícito.
+- [x] Associar casos aos requisitos e demonstrar as três regressões da seção 29 antes/depois.
+- [x] Definir limites críticos de cobertura e manter cenários de risco independentes do percentual global.
+- [x] Isolar casos, estado e diretórios e impedir retentativas automáticas que ocultem defeitos.
+- [x] Documentar reprodução, pré-requisitos, dados, evidências e limpeza em `TESTES-AUTOMATIZADOS.md`, sem arquivos privados de `data/`.
+- [x] Manter aceite externo separado; CI com simulações não marca provedores, infraestrutura, aparelhos ou leitor de tela como aprovados.
+
+**Critério final:** cada funcionalidade tem cenários rastreáveis de sucesso, falha e permissão; SQLite e MySQL passam nas verificações exigidas; testes E2E críticos e regressões passam; pacote é verificável e livre de segredos; pendências externas ficam explícitas. A implementação da estratégia e das novas suítes permanece pendente até existir código executável e evidência correspondente.

@@ -1,0 +1,5 @@
+import {spawn} from 'node:child_process';
+import {readFile} from 'node:fs/promises';
+const commands=[['build.mjs'],['scripts/test-runner.mjs','all'],['scripts/test-coverage.mjs'],['scripts/run-e2e.mjs'],['scripts/browser-runner.mjs','a11y'],['scripts/browser-runner.mjs','visual'],['scripts/verify-mysql.mjs'],['scripts/verify-release.mjs','--smoke-only'],['scripts/verify-release.mjs']];
+for(const args of commands){console.log('QUALITY STEP: node '+args.join(' '));const code=await new Promise((resolve,reject)=>{const child=spawn(process.execPath,args,{stdio:'inherit'});child.on('error',reject);child.on('exit',code=>resolve(code??1));});if(code!==0){process.exitCode=code;break;}}
+if(!process.exitCode&&process.argv.includes('--release')){const date=process.argv[process.argv.indexOf('--release')+1];if(!/^\d{4}-\d{2}-\d{2}$/.test(date||''))throw Error('Pass the explicit release date after --release');const child=spawn(process.env.PYTHON||'python',['scripts/package-release.py',date],{stdio:'inherit'});process.exitCode=await new Promise((resolve,reject)=>{child.on('error',reject);child.on('exit',code=>resolve(code??1));});}

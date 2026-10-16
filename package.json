@@ -1,6 +1,6 @@
 {
   "name": "confianza-hostinger",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "type": "module",
   "private": true,
   "engines": {
@@ -9,8 +9,17 @@
   "scripts": {
     "build": "node build.mjs",
     "start": "node server.mjs",
-    "test": "node --test test.mjs security.test.mjs enhancements.test.mjs recovery.test.mjs bootstrap-admin.test.mjs commercial.test.mjs notifications.test.mjs backup-compatibility.test.mjs email-notifications.test.mjs photo-editor.test.mjs team-workflows.test.mjs whatsapp-qr.test.mjs",
-    "test:mysql": "node scripts/verify-mysql.mjs"
+    "test": "node scripts/test-runner.mjs all",
+    "test:mysql": "node scripts/verify-mysql.mjs",
+    "test:unit": "node scripts/test-runner.mjs unit",
+    "test:integration": "node scripts/test-runner.mjs integration",
+    "test:contracts": "node scripts/test-runner.mjs contracts",
+    "test:e2e": "node scripts/run-e2e.mjs",
+    "test:a11y": "node scripts/browser-runner.mjs a11y",
+    "test:visual": "node scripts/browser-runner.mjs visual",
+    "test:release": "node scripts/verify-release.mjs",
+    "test:coverage": "node scripts/test-coverage.mjs",
+    "quality": "node scripts/quality-sequence.mjs"
   },
   "dependencies": {
     "express": "^5.1.0",
@@ -20,6 +29,8 @@
     "sharp": "^0.35.5"
   },
   "devDependencies": {
+    "@axe-core/playwright": "4.14.0",
+    "@playwright/test": "1.64.1",
     "jsqr": "^1.4.0"
   },
   "optionalDependencies": {

@@ -1,0 +1,20 @@
+import {sourceDigest,writeEvidence} from './release-evidence.mjs';
+import {spawn} from 'node:child_process';
+import {mkdir,readdir,writeFile} from 'node:fs/promises';
+import path from 'node:path';
+import {pathToFileURL} from 'node:url';
+const root=path.resolve(import.meta.dirname,'..'),suite=process.argv[2]||'all';
+const unit=['security.test.mjs','enhancements.test.mjs','commercial.test.mjs','notifications.test.mjs','photo-editor.test.mjs','tests/property-guard.test.mjs','tests/infrastructure.test.mjs','tests/release-gates.test.mjs'];
+const contracts=['email-notifications.test.mjs','team-workflows.test.mjs','whatsapp-qr.test.mjs'];
+const integration=['test.mjs','recovery.test.mjs','bootstrap-admin.test.mjs','backup-compatibility.test.mjs'];
+const groups={unit,contracts,integration,browser:['tests/qr-ui.browser.test.mjs'],all:[...unit,...contracts,...integration]};
+for(const file of await readdir(path.join(root,'tests')))if(file.startsWith('matrix-')&&file.endsWith('.test.mjs'))(file.includes('whatsapp')?contracts:unit).push('tests/'+file);
+// all is assembled after discovery, preserving layer order and file serialization.
+groups.all=[...unit,...contracts,...integration];
+if(!groups[suite])throw Error('Unknown test suite: '+suite);
+await mkdir(path.join(root,'reports'),{recursive:true});
+const guard=pathToFileURL(path.join(root,'tests/helpers/network-guard.mjs')).href,args=['--import',guard,'--test','--test-concurrency=1','--test-reporter=spec','--test-reporter-destination=stdout','--test-reporter=junit','--test-reporter-destination=reports/'+suite+'.xml'];
+if(process.env.TEST_COVERAGE==='true')args.push('--experimental-test-coverage','--test-reporter=lcov','--test-reporter-destination=reports/'+suite+'.lcov','--test-coverage-include=core/**','--test-coverage-include=public/portal/**');
+const startedDigest=await sourceDigest(),started=new Date().toISOString(),env={...process.env,NODE_OPTIONS:[process.env.NODE_OPTIONS,'--import '+JSON.stringify(guard)].filter(Boolean).join(' ')};
+const code=await new Promise((resolve,reject)=>{const child=spawn(process.execPath,[...args,...groups[suite]],{cwd:root,env,stdio:'inherit'});child.on('error',reject);child.on('exit',code=>resolve(code??1));});
+const xml=await (await import('node:fs/promises')).readFile(path.join(root,'reports',suite+'.xml'),'utf8');const evidence=await writeEvidence(suite,{started,files:groups[suite],code,skipped:(xml.match(/<skipped/g)||[]).length,externalProviders:false},startedDigest);process.exitCode=evidence.code;

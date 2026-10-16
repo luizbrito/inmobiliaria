@@ -1,0 +1,44 @@
+name: Sequential quality gates
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 8 * * 1'
+permissions:
+  contents: read
+concurrency:
+  group: quality-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  quality:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      CI: 'true'
+      PYTHON: python3
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.4.0
+        with:
+          node-version: '24.16.0'
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Run all required gates in order
+        run: npm run quality
+      - name: Extended browser verification in order
+        if: github.event_name == 'schedule'
+        env:
+          TEST_EXTENDED: 'true'
+        run: |
+          npx playwright install --with-deps firefox webkit
+          node scripts/browser-runner.mjs functional
+          node scripts/browser-runner.mjs a11y
+      - name: Preserve synthetic reports, screenshots and traces
+        if: always()
+        uses: actions/upload-artifact@v4.6.2
+        with:
+          name: quality-${{ github.run_id }}
+          path: reports/
+          retention-days: 7
