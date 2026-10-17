@@ -19,6 +19,8 @@ export function validateProperty(x){
  if(!['Comprar','Alugar','Lançamentos'].includes(x.purpose))throw Error('Finalidade inválida.');
  if(!['Publicado','Rascunho','Vendido'].includes(x.status))throw Error('Situação inválida.');
  if(!['BRL','USD'].includes(x.currency))throw Error('Moeda inválida.');
+ if(x.unit!==undefined&&!['m²','ha'].includes(x.unit))throw Error('Unidade inválida.');
+ if(x.tag!==undefined&&(typeof x.tag!=='string'||x.tag.length>80))throw Error('Destaque inválido.');
  if(x.priceOnRequest!==undefined&&typeof x.priceOnRequest!=='boolean')throw Error('Preço sob consulta inválido.');
  if(x.status!=='Rascunho'&&(!Number.isFinite(Number(x.area))||Number(x.area)<=0||!x.priceOnRequest&&(!Number.isFinite(Number(x.price))||Number(x.price)<=0)))throw Error('Preço e área devem ser positivos.');
  for(const field of ['productive','reserve','rain','beds','baths','parking'])if(x[field]!=null&&(!Number.isFinite(Number(x[field]))||Number(x[field])<0))throw Error('Dados técnicos inválidos.');

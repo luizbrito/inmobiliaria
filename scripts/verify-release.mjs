@@ -13,7 +13,7 @@ try{
  if(!process.argv.includes('--smoke-only')){
   const {requireReleaseEvidence}=await import('./release-evidence.mjs');await requireReleaseEvidence();
  }
- const version=JSON.parse(await readFile(path.join(root,'package.json'),'utf8')).version,date='2026-10-16',archives=path.join(directory,'archives'),extracted=path.join(directory,'package');await mkdir(extracted);
+ const version=JSON.parse(await readFile(path.join(root,'package.json'),'utf8')).version,date='2026-10-17',archives=path.join(directory,'archives'),extracted=path.join(directory,'package');await mkdir(extracted);
  await run(process.env.PYTHON||'python',['scripts/package-release.py',date,'--output-dir',archives],{cwd:root});
  const archive=path.join(archives,`confianza-hostinger-${version}-${date}.zip`),bytes=await readFile(archive),sum=(await readFile(archive+'.sha256','utf8')).split(' ')[0];assert.equal(createHash('sha256').update(bytes).digest('hex'),sum);
  await run(process.env.PYTHON||'python',['-c',`import zipfile,pathlib,sys

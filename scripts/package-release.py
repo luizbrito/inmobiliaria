@@ -20,6 +20,7 @@ archive = release_dir / f'confianza-hostinger-{version}-{release_date}.zip'
 files = [p for p in root.iterdir() if p.is_file() and (p.suffix in ['.mjs', '.md'] or p.name in ['package.json', 'package-lock.json', '.gitignore'])]
 for directory in ['core', 'public', 'scripts', 'tests', '.github']:
     files.extend(p for p in (root / directory).rglob('*') if p.is_file() and p.suffix in ['.mjs', '.js', '.json', '.html', '.css', '.svg', '.jpg', '.png', '.webp', '.py', '.yml', '.yaml'])
+files.extend(p for p in (root / 'docs').rglob('*.md') if p.is_file())
 with zipfile.ZipFile(archive, 'w', zipfile.ZIP_DEFLATED) as output:
     for file in sorted(files):
         relative = file.relative_to(root)
@@ -28,7 +29,7 @@ with zipfile.ZipFile(archive, 'w', zipfile.ZIP_DEFLATED) as output:
         output.write(file, relative.as_posix())
 with zipfile.ZipFile(archive) as output:
     assert output.testzip() is None
-    assert {'package.json', 'package-lock.json', 'server.mjs', 'public/portal/presentation.js', 'core/commercial.mjs'}.issubset(output.namelist())
+    assert {'package.json', 'package-lock.json', 'server.mjs', 'public/portal/presentation.js', 'core/commercial.mjs', 'docs/PLANO-UX-SEO-CRO.md'}.issubset(output.namelist())
 checksum = hashlib.sha256(archive.read_bytes()).hexdigest()
 archive.with_suffix('.zip.sha256').write_text(f'{checksum}  {archive.name}\n', encoding='utf-8')
 print(f'{archive.name}: {len(files)} files, {archive.stat().st_size} bytes')

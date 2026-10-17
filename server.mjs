@@ -16,6 +16,7 @@ import {newSecret,secretBox,verifyTotp,requiresMFA} from './core/security.mjs';
 import sharp from 'sharp';
 import QRCode from 'qrcode';
 import {bootstrapAdmin} from './core/bootstrap-admin.mjs';
+import {normalizeListingFilters,filterListing,listingMetadata} from './public/portal/listing-seo.js';
 const box=secretBox(process.env.MFA_ENCRYPTION_KEY);
 const scrypt=promisify(scryptCallback),root=path.dirname(fileURLToPath(import.meta.url)),assetRoot=process.env.ASSET_ROOT||path.resolve(root,'public');
 const port=Number(process.env.PORT||3000),origin=process.env.PUBLIC_ORIGIN||`http://localhost:${port}`;
@@ -152,19 +153,34 @@ app.use('/api',(req,res,next)=>{res.set('Cache-Control','no-store');next();},exp
  }catch(e){console.error('Falha no pedido:',e.name);res.status(400).json({error:'Não foi possível concluir a solicitação.'});}});
 app.use('/portal',express.static(path.join(assetRoot,'portal'),{maxAge:'1h',etag:true}));
 const escapeHtml=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const propertyImage=property=>new URL(property.image?.startsWith('https://')||property.image?.startsWith('/api/media/')?property.image:'/portal/assets/'+(property.image||'house.jpg'),origin).href;
+const propertyAlt=property=>[property.title,property.location].filter(Boolean).join(' — ');
+app.get('/buscar',async(req,res,next)=>{try{
+ const search=new URL(req.originalUrl,origin).searchParams,filters=normalizeListingFilters(search),rows=filterListing(await store.all('properties'),filters),settings=await store.get('settings','public')||defaultSettings;
+ const metadata=listingMetadata(filters,'pt',settings.name||'Confianza'),canonical=new URL('/buscar',origin);
+ for(const [key,value] of Object.entries(filters))if(value!=='')canonical.searchParams.set(key,String(value));
+ // Search combinations remain useful to visitors without becoming thousands of local landing pages.
+ const robots=search.size?'noindex,follow':'index,follow';
+ let html=await readFile(path.join(assetRoot,'portal/index.html'),'utf8');
+ html=html.replace(/<title>.*?<\/title>/,()=>`<title>${escapeHtml(metadata.title)}</title>`).replace(/<meta name="description"[^>]*>/,()=>`<meta name="description" content="${escapeHtml(metadata.description)}">`);
+ html=html.replace('</head>',()=>`<link rel="canonical" href="${escapeHtml(canonical.href)}"><meta name="robots" content="${robots}"><meta property="og:type" content="website"><meta property="og:url" content="${escapeHtml(canonical.href)}"><meta property="og:title" content="${escapeHtml(metadata.title)}"><meta property="og:description" content="${escapeHtml(metadata.description)}"></head>`);
+ const content=`<main class="container page-space"><nav aria-label="Navegação"><a href="/">Início</a></nav><h1>${escapeHtml(metadata.heading)}</h1>${settings.demo?'<p class="note">Catálogo demonstrativo. Imóveis, fotos e valores ilustrativos; não representam ofertas reais.</p>':''}<section aria-labelledby="listing-results"><h2 id="listing-results">Imóveis encontrados</h2><p>${rows.length} ${rows.length===1?'imóvel encontrado':'imóveis encontrados'}</p><div class="grid">${rows.map(property=>`<article class="card"><a href="/imovel/${encodeURIComponent(property.id)}"><img src="${escapeHtml(propertyImage(property))}" alt="${escapeHtml(propertyAlt(property))}" loading="lazy" width="600" height="440"><h3>${escapeHtml(property.title)}</h3></a><p>${escapeHtml(property.location)}</p><p>${escapeHtml(property.type)} · ${escapeHtml(property.purpose)}</p><p>${property.priceOnRequest?'Preço sob consulta':escapeHtml(new Intl.NumberFormat('pt-BR',{style:'currency',currency:property.currency||'BRL',maximumFractionDigits:0}).format(property.price))}</p><a href="/imovel/${encodeURIComponent(property.id)}">Ver imóvel e agendar visita</a></article>`).join('')||'<p>Nenhum imóvel encontrado. Tente ajustar os filtros.</p>'}</div></section><a href="/buscar">Ver todos os imóveis</a></main>`;
+ html=html.replace('<!-- APP_CONTENT -->',()=>content);
+ res.set({'Cache-Control':'no-cache','X-Robots-Tag':robots}).type('html').send(html);
+ }catch(error){next(error);}});
 app.get('/imovel/:id',async(req,res,next)=>{try{
  const property=await store.get('properties',req.params.id);
  if(!property||property.status!=='Publicado')return res.status(404).type('html').send('<!doctype html><html lang="pt-BR"><title>Imóvel não encontrado</title><h1>Imóvel não encontrado</h1><a href="/">Ver catálogo</a></html>');
  await recordPropertyView(store,property.id,{user:await getUser(new Request(origin+req.originalUrl,{headers:req.headers})),userAgent:req.headers['user-agent']||'',ip:req.ip,key:process.env.ANALYTICS_HASH_KEY||''});
- const canonical=origin+'/imovel/'+encodeURIComponent(property.id),title=property.title+' | Confianza',description=String(property.description||property.location||'').slice(0,300),image=new URL(property.image?.startsWith('https://')||property.image?.startsWith('/api/media/')?property.image:'/portal/assets/'+(property.image||'house.jpg'),origin).href;
+ const canonical=origin+'/imovel/'+encodeURIComponent(property.id),title=property.title+' | Confianza',description=String(property.description||property.location||'').slice(0,300),image=propertyImage(property);
  let html=await readFile(path.join(assetRoot,'portal/index.html'),'utf8');
- html=html.replace(/<title>.*?<\/title>/,`<title>${escapeHtml(title)}</title>`).replace(/<meta name="description"[^>]*>/,`<meta name="description" content="${escapeHtml(description)}">`);
- html=html.replace('</head>',`<link rel="canonical" href="${escapeHtml(canonical)}"><meta property="og:type" content="website"><meta property="og:url" content="${escapeHtml(canonical)}"><meta property="og:title" content="${escapeHtml(title)}"><meta property="og:description" content="${escapeHtml(description)}"><meta property="og:image" content="${escapeHtml(image)}"><meta name="twitter:card" content="summary_large_image"></head>`);
- html=html.replace('<p class="loading">Preparando novos horizontes…</p>',`<main><h1>${escapeHtml(property.title)}</h1><p>${escapeHtml(property.location)}</p><img src="${escapeHtml(image)}" alt="${escapeHtml(property.title)}" width="1200" height="800"><p>${escapeHtml(description)}</p><p>${property.priceOnRequest?'Preço sob consulta':escapeHtml(new Intl.NumberFormat('pt-BR',{style:'currency',currency:property.currency}).format(property.price))}</p><a href="/">Ver catálogo</a></main>`);
+ html=html.replace(/<title>.*?<\/title>/,()=>`<title>${escapeHtml(title)}</title>`).replace(/<meta name="description"[^>]*>/,()=>`<meta name="description" content="${escapeHtml(description)}">`);
+ html=html.replace('</head>',()=>`<link rel="canonical" href="${escapeHtml(canonical)}"><meta property="og:type" content="website"><meta property="og:url" content="${escapeHtml(canonical)}"><meta property="og:title" content="${escapeHtml(title)}"><meta property="og:description" content="${escapeHtml(description)}"><meta property="og:image" content="${escapeHtml(image)}"><meta name="twitter:card" content="summary_large_image"></head>`);
+ html=html.replace('<!-- APP_CONTENT -->',()=>`<main><h1>${escapeHtml(property.title)}</h1><p>${escapeHtml(property.location)}</p><img src="${escapeHtml(image)}" alt="${escapeHtml(propertyAlt(property))}" width="1200" height="800"><p>${escapeHtml(description)}</p><p>${property.priceOnRequest?'Preço sob consulta':escapeHtml(new Intl.NumberFormat('pt-BR',{style:'currency',currency:property.currency}).format(property.price))}</p><a href="/">Ver catálogo</a></main>`);
  res.set('Cache-Control','no-cache').type('html').send(html);
  }catch(error){next(error);}});
 app.get('/sitemap.xml',async(req,res,next)=>{try{const properties=(await store.all('properties')).filter(x=>x.status==='Publicado');res.type('application/xml').send(`<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>${escapeHtml(origin+'/')}</loc></url>${properties.map(p=>`<url><loc>${escapeHtml(origin+'/imovel/'+encodeURIComponent(p.id))}</loc></url>`).join('')}</urlset>`);}catch(error){next(error);}});
 app.get('/robots.txt',(req,res)=>res.type('text/plain').send(`User-agent: *\nDisallow: /admin\nDisallow: /api/\nSitemap: ${origin}/sitemap.xml\n`));
-app.get(['/', '/buscar','/favoritos','/comparar','/sobre','/privacidade','/admin','/admin/:section','/admin/recuperar','/admin/imoveis/novo','/admin/imoveis/:id/editar'],(req,res)=>{if(req.path.startsWith('/admin'))res.set({'Cache-Control':'no-store','X-Robots-Tag':'noindex'});res.sendFile(path.join(assetRoot,'portal/index.html'));});
+app.get(['/', '/favoritos','/comparar','/sobre','/privacidade','/admin','/admin/:section','/admin/recuperar','/admin/imoveis/novo','/admin/imoveis/:id/editar'],(req,res)=>{if(req.path.startsWith('/admin'))res.set({'Cache-Control':'no-store','X-Robots-Tag':'noindex'});res.sendFile(path.join(assetRoot,'portal/index.html'));});
 app.use((err,req,res,next)=>res.status(err.status||500).json({error:err.type==='entity.too.large'?'Arquivo muito grande.':'Falha ao processar o pedido.'}));
 app.listen(port,process.env.LISTEN_HOST||'0.0.0.0',()=>console.log(`Confianza pronta na porta ${port}; banco ${dbType}.`));

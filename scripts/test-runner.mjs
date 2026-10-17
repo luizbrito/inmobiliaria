@@ -6,7 +6,7 @@ import {pathToFileURL} from 'node:url';
 const root=path.resolve(import.meta.dirname,'..'),suite=process.argv[2]||'all';
 const unit=['security.test.mjs','enhancements.test.mjs','commercial.test.mjs','notifications.test.mjs','photo-editor.test.mjs','tests/property-guard.test.mjs','tests/infrastructure.test.mjs','tests/release-gates.test.mjs'];
 const contracts=['email-notifications.test.mjs','team-workflows.test.mjs','whatsapp-qr.test.mjs'];
-const integration=['test.mjs','recovery.test.mjs','bootstrap-admin.test.mjs','backup-compatibility.test.mjs'];
+const integration=['test.mjs','recovery.test.mjs','bootstrap-admin.test.mjs','backup-compatibility.test.mjs','tests/listing-seo.test.mjs'];
 const groups={unit,contracts,integration,browser:['tests/qr-ui.browser.test.mjs'],all:[...unit,...contracts,...integration]};
 for(const file of await readdir(path.join(root,'tests')))if(file.startsWith('matrix-')&&file.endsWith('.test.mjs'))(file.includes('whatsapp')?contracts:unit).push('tests/'+file);
 // all is assembled after discovery, preserving layer order and file serialization.

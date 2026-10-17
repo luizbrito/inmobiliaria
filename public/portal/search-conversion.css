@@ -1,0 +1,41 @@
+/* Search remains part of the established Confianza green, cream and serif system. */
+.hero{height:510px}
+.hero-content{padding-top:58px}
+.hero h1{margin-top:0}
+.hero-bottom{bottom:160px}
+.search-wrap{margin-top:-138px}
+.search-intro{padding:23px 26px 0}
+.search-intro h2{font-size:27px;margin:0 0 5px}
+.search-intro p{font-size:13px;color:var(--muted);line-height:1.6}
+.search-tabs button{min-height:48px;white-space:nowrap}
+.search-fields{padding-top:23px;padding-bottom:18px}
+.search-field{min-width:0}
+.search-field label{font-size:12px;margin-bottom:4px;letter-spacing:0}
+.search-field input,.search-field select{min-height:44px;font-size:14px;color:var(--ink);border-radius:3px}
+.search-field input::placeholder{color:var(--muted);opacity:1}
+.search-field input:focus-visible,.search-field select:focus-visible{outline:2px solid var(--green);outline-offset:3px}
+.search-foot{font-size:12px;gap:16px;align-items:center;flex-wrap:wrap}
+.search-foot button,.search-foot a{min-height:44px;display:inline-flex;align-items:center;gap:7px;text-decoration:underline;text-underline-offset:3px}
+.search-hint{margin:0;color:var(--muted);font-size:12px}
+.quick-searches{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:16px 0 5px}
+.quick-searches>span{font-size:12px;font-weight:600;margin-right:5px}
+.quick-searches a{border:1px solid #c8d2c9;border-radius:24px;min-height:44px;display:inline-flex;align-items:center;padding:9px 15px;font-size:12px;background:white}
+.quick-searches a:hover{background:var(--cream);border-color:var(--green)}
+.quick-searches a[aria-current=true]{background:var(--green);color:white;border-color:var(--green)}
+.listing-results-title{font-size:27px;margin:30px 0 0}
+.public-page .empty a{display:inline-flex;margin-top:18px}
+.public-page main{scroll-margin-top:24px}
+.public-page footer{padding-bottom:100px}
+.public-page :focus-visible{outline:3px solid #8b691e;outline-offset:4px}
+.public-page ::selection{background:#cfb782;color:#213c31}
+.public-page input,.public-page textarea{caret-color:var(--green)}
+.public-page .card-actions{padding:14px 0 0;margin-top:14px;flex-direction:row;align-items:center}
+.public-page .card-actions .card-details{flex:0 1 auto;margin-right:auto}
+.public-page .card-actions>.btn{flex:0 1 auto}
+#toast{visibility:hidden}
+#toast.show{visibility:visible}
+@media(min-width:1500px){.hero{height:550px}.hero-content{padding-top:75px}}
+@media(max-width:1000px){.search-fields{grid-template-columns:1.6fr 1fr 1.1fr}.search-fields>.btn{grid-column:1/-1;margin:17px 0 0;min-height:48px}}
+@media(max-width:800px){.hero{height:440px}.hero-content{padding-top:45px}.hero h1{font-size:46px}.search-wrap{margin-top:-105px}.search-tabs{gap:0;flex-wrap:wrap;padding:0 10px;justify-content:flex-start}.search-tabs button{padding:12px 10px;font-size:12px}.search-fields{grid-template-columns:1fr 1fr;gap:12px}.search-intro{padding:20px 18px 0}.search-intro h2{font-size:25px}.search-field input,.search-field select{font-size:16px}.search-fields>.btn{margin:0}.search-field:first-child{grid-column:1/-1}.quick-searches{padding-top:14px}.quick-searches>span{flex-basis:100%}}
+@media(max-width:480px){.hero{height:400px}.hero-content{padding-top:35px}.hero h1{font-size:38px}.hero p{font-size:14px;max-width:310px}.search-wrap{margin-top:-65px}.search-fields{grid-template-columns:1fr}.search-field{grid-column:1/-1}.search-tabs button{font-size:11px;padding:10px 8px}.search-tabs button .icon{display:none}.search-foot{gap:2px}.search-foot>span:last-child{display:initial}.quick-searches a{padding:9px 12px}.search-intro h2{font-size:23px}.public-page .grid{grid-template-columns:1fr}.public-page .card-image{height:225px}.public-page .card h3{font-size:17px}.public-page .card-category{font-size:10px}.public-page .location,.public-page .features,.public-page .card-bottom{font-size:12px}.public-page .price{font-size:17px}.public-page .card-body{padding:18px}.public-page .favorite{width:44px;height:44px}.public-page .card-actions .btn{font-size:13px}}
+@media(max-width:520px){.whatsapp-float{width:52px;height:52px;min-height:52px;padding:0;gap:0}.whatsapp-float>span{display:none}}
